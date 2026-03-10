@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useProvers, useNetworkStats } from "@/lib/api";
 import { formatBytes, formatNumber } from "@/lib/utils";
 import { Network, Cpu, Zap, HardDrive } from "lucide-react";
+import Link from "next/link";
 
 export default function ProversPage() {
   const { data: stats, isLoading: loadingStats } = useNetworkStats();
@@ -89,7 +90,12 @@ export default function ProversPage() {
                         className="border-b last:border-0 hover:bg-gray-50"
                       >
                         <td className="px-4 py-3 font-mono text-xs">
-                          {p.hotkey.slice(0, 10)}...
+                          <Link
+                            href={`/provers/${p.hotkey}`}
+                            className="text-brand-600 hover:underline"
+                          >
+                            {p.hotkey.slice(0, 10)}...
+                          </Link>
                         </td>
                         <td className="px-4 py-3">{p.gpu_name || "CPU"}</td>
                         <td className="px-4 py-3">
