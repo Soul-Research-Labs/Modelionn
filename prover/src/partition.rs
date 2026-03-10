@@ -119,3 +119,146 @@ fn extract_partition_data(
 
     circuit_data[byte_start..byte_end].to_vec()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::*;
+
+    fn test_circuit(num_constraints: u64) -> Circuit {
+        Circuit {
+            id: "test-circuit".into(),
+            name: "test".into(),
+            proof_system: ProofSystem::Groth16,
+            circuit_type: CircuitType::General,
+            num_constraints,
+            num_public_inputs: 1,
+            num_private_inputs: 2,
+            data: vec![0u8; (num_constraints as usize).min(1024)],
+            proving_key: vec![],
+            verification_key: vec![],
+        }
+    }
+
+    #[test]
+    fn test_create_partition_plan_single() {
+        let circuit = test_circuit(1000);
+        let plan = create_partition_plan(&circuit, 1, 2, 10_000_000).unwrap();
+        assert_eq!(plan.partitions.len(), 1);
+        assert_eq!(plan.redundancy, 2);
+        assert_eq!(plan.circuit_id, "test-circuit");
+    }
+
+    #[test]
+    fn test_create_partition_plan_multiple_provers() {
+        let circuit = test_circuit(100_000);
+        let plan = create_partition_plan(&circuit, 4, 2, 10_000_000).unwrap();
+        assert!(plan.partitions.len() >= 4);
+        // Check partitions cover full range
+        assert_eq!(plan.partitions[0].constraint_start, 0);
+        let last = plan.partitions.last().unwrap();
+        assert_eq!(last.constraint_end, 100_000);
+    }
+
+    #[test]
+    fn test_create_partition_plan_large_circuit() {
+        let circuit = test_circuit(50_000_000);
+        let plan = create_partition_plan(&circuit, 2, 1, 10_000_000).unwrap();
+        // Should have at least 5 partitions (50M / 10M)
+        assert!(plan.partitions.len() >= 5);
+    }
+
+    #[test]
+    fn test_partition_plan_zero_provers_error() {
+        let circuit = test_circuit(1000);
+        let result = create_partition_plan(&circuit, 0, 1, 10_000_000);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_partition_plan_zero_redundancy_error() {
+        let circuit = test_circuit(1000);
+        let result = create_partition_plan(&circuit, 1, 0, 10_000_000);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_partition_indices_sequential() {
+        let circuit = test_circuit(100_000);
+        let plan = create_partition_plan(&circuit, 4, 2, 10_000_000).unwrap();
+        for (i, p) in plan.partitions.iter().enumerate() {
+            assert_eq!(p.index, i as u32);
+            assert_eq!(p.total, plan.partitions.len() as u32);
+        }
+    }
+
+    #[test]
+    fn test_partition_constraints_contiguous() {
+        let circuit = test_circuit(100_000);
+        let plan = create_partition_plan(&circuit, 4, 2, 10_000_000).unwrap();
+        for i in 1..plan.partitions.len() {
+            assert_eq!(
+                plan.partitions[i].constraint_start,
+                plan.partitions[i - 1].constraint_end,
+            );
+        }
+    }
+
+    #[test]
+    fn test_assign_witness_to_partitions() {
+        let circuit = test_circuit(1000);
+        let mut plan = create_partition_plan(&circuit, 2, 1, 10_000_000).unwrap();
+        let witness = Witness {
+            assignments: vec![1u8; 100],
+            public_inputs: vec![],
+        };
+        assign_witness_to_partitions(&mut plan, &witness, 1000).unwrap();
+        let total_bytes: usize = plan.partitions.iter().map(|p| p.witness_fragment.len()).sum();
+        assert!(total_bytes >= 100); // May overlap slightly due to ceil
+    }
+
+    #[test]
+    fn test_assign_empty_witness_error() {
+        let circuit = test_circuit(1000);
+        let mut plan = create_partition_plan(&circuit, 1, 1, 10_000_000).unwrap();
+        let witness = Witness {
+            assignments: vec![],
+            public_inputs: vec![],
+        };
+        let result = assign_witness_to_partitions(&mut plan, &witness, 1000);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_extract_partition_data_empty() {
+        let data = extract_partition_data(&[], 0, 100, 100);
+        assert!(data.is_empty());
+    }
+
+    #[test]
+    fn test_extract_partition_data_zero_constraints() {
+        let data = extract_partition_data(&[1, 2, 3], 0, 0, 0);
+        assert!(data.is_empty());
+    }
+
+    #[test]
+    fn test_extract_partition_data_proportional() {
+        let data: Vec<u8> = (0..100).collect();
+        let extracted = extract_partition_data(&data, 0, 50, 100);
+        assert_eq!(extracted.len(), 50);
+        assert_eq!(extracted[0], 0);
+    }
+
+    #[test]
+    fn test_estimated_time_different_systems() {
+        let groth16 = test_circuit(1_000_000);
+        let plan_g = create_partition_plan(&groth16, 1, 1, 1_000_000).unwrap();
+
+        let mut stark_circuit = test_circuit(1_000_000);
+        stark_circuit.proof_system = ProofSystem::Stark;
+        let plan_s = create_partition_plan(&stark_circuit, 1, 1, 1_000_000).unwrap();
+
+        // STARKs should have higher estimated time
+        assert!(plan_s.estimated_time_ms > plan_g.estimated_time_ms);
+    }
+}

@@ -358,3 +358,168 @@ fn aggregate_stark(fragments: &[&ProofFragment]) -> ProverResult<Vec<u8>> {
     bincode::serialize(&aggregated)
         .map_err(|e| ProverError::AggregationFailed(format!("STARK aggregate serialize: {}", e)))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::*;
+
+    fn test_circuit() -> Circuit {
+        Circuit {
+            id: "test-circ".into(),
+            name: "test".into(),
+            proof_system: ProofSystem::Groth16,
+            circuit_type: CircuitType::General,
+            num_constraints: 1000,
+            num_public_inputs: 1,
+            num_private_inputs: 2,
+            data: vec![0u8; 64],
+            proving_key: vec![0u8; 32],
+            verification_key: vec![0u8; 32],
+        }
+    }
+
+    fn test_plan(num_partitions: u32) -> PartitionPlan {
+        PartitionPlan {
+            circuit_id: "test-circ".into(),
+            partitions: (0..num_partitions)
+                .map(|i| Partition {
+                    index: i,
+                    total: num_partitions,
+                    constraint_start: i as u64 * 500,
+                    constraint_end: (i as u64 + 1) * 500,
+                    data: vec![],
+                    witness_fragment: vec![],
+                })
+                .collect(),
+            redundancy: 2,
+            estimated_time_ms: 1000,
+        }
+    }
+
+    fn test_fragments(n: u32) -> Vec<ProofFragment> {
+        (0..n)
+            .map(|i| ProofFragment {
+                partition_index: i,
+                proof_data: vec![1u8; 64],
+                commitment: vec![2u8; 32],
+                generation_time_ms: 100,
+                gpu_backend: Some(GpuBackendType::Cuda),
+            })
+            .collect()
+    }
+
+    #[test]
+    fn test_aggregate_insufficient_fragments() {
+        let circuit = test_circuit();
+        let plan = test_plan(4);
+        let fragments = test_fragments(2); // Only 2 out of 4
+        let result = aggregate_fragments(&fragments, &circuit, &plan);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_aggregate_out_of_order_fragments() {
+        let circuit = test_circuit();
+        let plan = test_plan(2);
+        // Fragments out of order
+        let fragments = vec![
+            ProofFragment {
+                partition_index: 1,
+                proof_data: vec![1u8; 64],
+                commitment: vec![2u8; 32],
+                generation_time_ms: 50,
+                gpu_backend: None,
+            },
+            ProofFragment {
+                partition_index: 0,
+                proof_data: vec![3u8; 64],
+                commitment: vec![4u8; 32],
+                generation_time_ms: 80,
+                gpu_backend: None,
+            },
+        ];
+        // Should succeed since aggregate_fragments sorts by index
+        let result = aggregate_fragments(&fragments, &circuit, &plan);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_aggregate_empty_proof_data() {
+        let circuit = test_circuit();
+        let plan = test_plan(1);
+        let fragments = vec![ProofFragment {
+            partition_index: 0,
+            proof_data: vec![], // Empty!
+            commitment: vec![],
+            generation_time_ms: 0,
+            gpu_backend: None,
+        }];
+        let result = aggregate_fragments(&fragments, &circuit, &plan);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_aggregate_sets_proof_system() {
+        let mut circuit = test_circuit();
+        circuit.proof_system = ProofSystem::Groth16;
+        let plan = test_plan(1);
+        let fragments = test_fragments(1);
+        let proof = aggregate_fragments(&fragments, &circuit, &plan).unwrap();
+        assert_eq!(proof.proof_system, ProofSystem::Groth16);
+    }
+
+    #[test]
+    fn test_aggregate_time_is_max() {
+        let circuit = test_circuit();
+        let plan = test_plan(3);
+        let mut fragments = test_fragments(3);
+        fragments[0].generation_time_ms = 100;
+        fragments[1].generation_time_ms = 500;
+        fragments[2].generation_time_ms = 200;
+        let proof = aggregate_fragments(&fragments, &circuit, &plan).unwrap();
+        assert_eq!(proof.generation_time_ms, 500);
+    }
+
+    #[test]
+    fn test_aggregate_preserves_gpu_backend() {
+        let circuit = test_circuit();
+        let plan = test_plan(1);
+        let mut fragments = test_fragments(1);
+        fragments[0].gpu_backend = Some(GpuBackendType::Metal);
+        let proof = aggregate_fragments(&fragments, &circuit, &plan).unwrap();
+        assert_eq!(proof.gpu_backend, Some(GpuBackendType::Metal));
+    }
+
+    #[test]
+    fn test_aggregate_missing_partition_index() {
+        let circuit = test_circuit();
+        let plan = test_plan(3);
+        // Fragment 0 and 2, missing 1
+        let fragments = vec![
+            ProofFragment {
+                partition_index: 0,
+                proof_data: vec![1u8; 64],
+                commitment: vec![2u8; 32],
+                generation_time_ms: 100,
+                gpu_backend: None,
+            },
+            ProofFragment {
+                partition_index: 2,
+                proof_data: vec![3u8; 64],
+                commitment: vec![4u8; 32],
+                generation_time_ms: 100,
+                gpu_backend: None,
+            },
+            ProofFragment {
+                partition_index: 2, // Duplicate 2, missing 1
+                proof_data: vec![5u8; 64],
+                commitment: vec![6u8; 32],
+                generation_time_ms: 100,
+                gpu_backend: None,
+            },
+        ];
+        let result = aggregate_fragments(&fragments, &circuit, &plan);
+        assert!(result.is_err());
+    }
+}

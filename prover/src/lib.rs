@@ -117,3 +117,87 @@ impl ProverEngine {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_prover_engine_creation() {
+        let engine = ProverEngine::new(1_000_000);
+        assert_eq!(engine.max_constraints, 1_000_000);
+    }
+
+    #[test]
+    fn test_error_display() {
+        let err = ProverError::UnsupportedSystem("unknown".into());
+        assert_eq!(format!("{}", err), "unsupported proof system: unknown");
+
+        let err = ProverError::GpuError("out of memory".into());
+        assert_eq!(format!("{}", err), "GPU error: out of memory");
+
+        let err = ProverError::CircuitTooLarge {
+            constraints: 2_000_000,
+            limit: 1_000_000,
+        };
+        let msg = format!("{}", err);
+        assert!(msg.contains("2000000"));
+        assert!(msg.contains("1000000"));
+
+        let err = ProverError::Timeout(600);
+        assert_eq!(format!("{}", err), "timeout after 600 seconds");
+    }
+
+    #[test]
+    fn test_error_variants() {
+        // Just ensure all variants can be constructed
+        let _errors: Vec<ProverError> = vec![
+            ProverError::UnsupportedSystem("x".into()),
+            ProverError::GpuError("x".into()),
+            ProverError::PartitionError("x".into()),
+            ProverError::VerificationFailed("x".into()),
+            ProverError::AggregationFailed("x".into()),
+            ProverError::SerializationError("x".into()),
+            ProverError::CircuitTooLarge { constraints: 1, limit: 0 },
+            ProverError::Timeout(1),
+            ProverError::Internal("x".into()),
+        ];
+    }
+
+    #[tokio::test]
+    async fn test_prove_circuit_too_large() {
+        let engine = ProverEngine::new(1000);
+        let circuit = Circuit {
+            id: "big".into(),
+            name: "big-circuit".into(),
+            proof_system: ProofSystem::Groth16,
+            circuit_type: CircuitType::General,
+            num_constraints: 5000, // Exceeds limit
+            num_public_inputs: 1,
+            num_private_inputs: 1,
+            data: vec![],
+            proving_key: vec![],
+            verification_key: vec![],
+        };
+        let witness = Witness {
+            assignments: vec![0u8; 16],
+            public_inputs: vec![],
+        };
+        let result = engine.prove(&circuit, &witness, None).await;
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            ProverError::CircuitTooLarge { constraints, limit } => {
+                assert_eq!(constraints, 5000);
+                assert_eq!(limit, 1000);
+            }
+            _ => panic!("Expected CircuitTooLarge error"),
+        }
+    }
+
+    #[test]
+    fn test_gpu_capabilities_empty_by_default() {
+        let engine = ProverEngine::new(1_000_000);
+        // detect() won't find real GPUs in CI — just checking it doesn't panic
+        let _caps = engine.gpu_capabilities();
+    }
+}

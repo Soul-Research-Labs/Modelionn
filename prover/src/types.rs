@@ -168,3 +168,135 @@ pub struct ProverStats {
     /// Available GPU devices
     pub gpus: Vec<GpuCapabilities>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_proof_system_serde() {
+        let json = serde_json::to_string(&ProofSystem::Groth16).unwrap();
+        assert_eq!(json, "\"groth16\"");
+        let parsed: ProofSystem = serde_json::from_str("\"plonk\"").unwrap();
+        assert_eq!(parsed, ProofSystem::Plonk);
+    }
+
+    #[test]
+    fn test_circuit_type_serde() {
+        let json = serde_json::to_string(&CircuitType::ZkMl).unwrap();
+        assert_eq!(json, "\"zk_ml\"");
+        let parsed: CircuitType = serde_json::from_str("\"evm\"").unwrap();
+        assert_eq!(parsed, CircuitType::Evm);
+    }
+
+    #[test]
+    fn test_gpu_backend_type_serde() {
+        let json = serde_json::to_string(&GpuBackendType::Cuda).unwrap();
+        assert_eq!(json, "\"cuda\"");
+        let parsed: GpuBackendType = serde_json::from_str("\"metal\"").unwrap();
+        assert_eq!(parsed, GpuBackendType::Metal);
+    }
+
+    #[test]
+    fn test_proof_system_variants() {
+        let variants = [
+            ProofSystem::Groth16,
+            ProofSystem::Plonk,
+            ProofSystem::Halo2,
+            ProofSystem::Stark,
+        ];
+        for v in &variants {
+            let json = serde_json::to_string(v).unwrap();
+            let back: ProofSystem = serde_json::from_str(&json).unwrap();
+            assert_eq!(*v, back);
+        }
+    }
+
+    #[test]
+    fn test_circuit_serde_roundtrip() {
+        let circuit = Circuit {
+            id: "abc123".into(),
+            name: "test".into(),
+            proof_system: ProofSystem::Groth16,
+            circuit_type: CircuitType::General,
+            num_constraints: 1000,
+            num_public_inputs: 2,
+            num_private_inputs: 5,
+            data: vec![1, 2, 3],
+            proving_key: vec![4, 5],
+            verification_key: vec![6, 7],
+        };
+        let json = serde_json::to_string(&circuit).unwrap();
+        let back: Circuit = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.id, "abc123");
+        assert_eq!(back.num_constraints, 1000);
+        assert_eq!(back.proof_system, ProofSystem::Groth16);
+    }
+
+    #[test]
+    fn test_proof_fragment_serde_roundtrip() {
+        let frag = ProofFragment {
+            partition_index: 3,
+            proof_data: vec![10, 20],
+            commitment: vec![30],
+            generation_time_ms: 500,
+            gpu_backend: Some(GpuBackendType::Cuda),
+        };
+        let json = serde_json::to_string(&frag).unwrap();
+        let back: ProofFragment = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.partition_index, 3);
+        assert_eq!(back.gpu_backend, Some(GpuBackendType::Cuda));
+    }
+
+    #[test]
+    fn test_partition_plan_serde() {
+        let plan = PartitionPlan {
+            circuit_id: "circ-1".into(),
+            partitions: vec![
+                Partition {
+                    index: 0,
+                    total: 2,
+                    constraint_start: 0,
+                    constraint_end: 500,
+                    data: vec![],
+                    witness_fragment: vec![],
+                },
+            ],
+            redundancy: 2,
+            estimated_time_ms: 1000,
+        };
+        let json = serde_json::to_string(&plan).unwrap();
+        let back: PartitionPlan = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.redundancy, 2);
+        assert_eq!(back.partitions.len(), 1);
+    }
+
+    #[test]
+    fn test_gpu_capabilities_serde() {
+        let caps = GpuCapabilities {
+            device_name: "RTX 4090".into(),
+            backend: GpuBackendType::Cuda,
+            vram_bytes: 24_000_000_000,
+            vram_available_bytes: 20_000_000_000,
+            compute_version: "8.9".into(),
+            compute_units: 128,
+            benchmark_score: 9500.0,
+        };
+        let json = serde_json::to_string(&caps).unwrap();
+        let back: GpuCapabilities = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.device_name, "RTX 4090");
+        assert_eq!(back.vram_bytes, 24_000_000_000);
+    }
+
+    #[test]
+    fn test_witness_serde() {
+        let w = Witness {
+            assignments: vec![1, 2, 3, 4, 5],
+            public_inputs: vec![10, 20],
+        };
+        let json = serde_json::to_string(&w).unwrap();
+        let back: Witness = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.assignments.len(), 5);
+        assert_eq!(back.public_inputs.len(), 2);
+    }
+}

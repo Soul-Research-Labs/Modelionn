@@ -445,3 +445,88 @@ fn verify_stark(
         Ok((true, "STARK verification (no feature)".to_string()))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::*;
+
+    fn test_circuit(proof_system: ProofSystem) -> Circuit {
+        Circuit {
+            id: "test".into(),
+            name: "test-circuit".into(),
+            proof_system,
+            circuit_type: CircuitType::General,
+            num_constraints: 100,
+            num_public_inputs: 1,
+            num_private_inputs: 1,
+            data: vec![0u8; 64],
+            proving_key: vec![0u8; 32],
+            verification_key: vec![0u8; 32],
+        }
+    }
+
+    fn test_proof(proof_system: ProofSystem) -> Proof {
+        Proof {
+            proof_system,
+            data: vec![1u8; 64],
+            public_inputs: vec![0u8; 16],
+            generation_time_ms: 100,
+            proof_size_bytes: 64,
+            gpu_backend: None,
+        }
+    }
+
+    #[test]
+    fn test_verify_empty_proof_data() {
+        let circuit = test_circuit(ProofSystem::Groth16);
+        let mut proof = test_proof(ProofSystem::Groth16);
+        proof.data = vec![];
+        let result = verify_proof(&circuit, &proof, &[]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_verify_empty_verification_key() {
+        let mut circuit = test_circuit(ProofSystem::Groth16);
+        circuit.verification_key = vec![];
+        let proof = test_proof(ProofSystem::Groth16);
+        let result = verify_proof(&circuit, &proof, &[]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_verify_result_structure() {
+        // With real features enabled, verification of synthetic data will fail
+        // at deserialization. We test that the function returns an Error (not a panic).
+        let circuit = test_circuit(ProofSystem::Groth16);
+        let proof = test_proof(ProofSystem::Groth16);
+        let result = verify_proof(&circuit, &proof, &[0u8; 16]);
+        // With feature enabled: deserialization error; without: fallback Ok
+        // Either way, the function should not panic
+        match result {
+            Ok(vr) => {
+                assert_eq!(vr.proof_system, ProofSystem::Groth16);
+                assert_eq!(vr.circuit_id, "test");
+            }
+            Err(e) => {
+                // Expected when real feature is enabled with dummy data
+                let msg = format!("{}", e);
+                assert!(msg.contains("serialization") || msg.contains("deser") || msg.contains("verification"),
+                    "Unexpected error: {}", msg);
+            }
+        }
+    }
+
+    #[test]
+    fn test_verification_result_fields() {
+        let vr = VerificationResult {
+            valid: true,
+            proof_system: ProofSystem::Stark,
+            circuit_id: "circ-1".into(),
+            details: "passed".into(),
+        };
+        assert!(vr.valid);
+        assert_eq!(vr.proof_system, ProofSystem::Stark);
+    }
+}
