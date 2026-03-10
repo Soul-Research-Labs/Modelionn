@@ -22,7 +22,7 @@ lint-fix:
 	ruff check --fix .
 
 typecheck:
-	mypy registry subnet evaluation --ignore-missing-imports
+	mypy registry subnet --ignore-missing-imports
 
 # ── Docker ─────────────────────────────────────────────────
 

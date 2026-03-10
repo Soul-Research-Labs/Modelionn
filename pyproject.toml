@@ -51,7 +51,7 @@ ml = [
 modelionn = "cli.main:app"
 
 [tool.hatch.build.targets.wheel]
-packages = ["registry", "subnet", "evaluation", "sdk", "cli"]
+packages = ["registry", "subnet", "sdk", "cli"]
 
 [tool.ruff]
 target-version = "py310"

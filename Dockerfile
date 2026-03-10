@@ -21,7 +21,6 @@ COPY pyproject.toml README.md ./
 RUN pip install --no-cache-dir --upgrade pip
 COPY registry/ registry/
 COPY subnet/ subnet/
-COPY evaluation/ evaluation/
 COPY sdk/ sdk/
 COPY cli/ cli/
 COPY prover/python/ prover/python/
