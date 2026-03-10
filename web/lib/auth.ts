@@ -1,6 +1,10 @@
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import crypto from "crypto";
+
+const REGISTRY_URL =
+  process.env.REGISTRY_INTERNAL_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  "http://localhost:8000";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -23,8 +27,8 @@ export const authOptions: NextAuthOptions = {
 
         const { hotkey, nonce, signature } = credentials;
 
-        // Basic validation — hotkey should be an ss58 address (starts with 5, 48 chars)
-        if (!hotkey.startsWith("5") || hotkey.length < 40) {
+        // Basic validation — hotkey should be an ss58 address (starts with 5, 46+ chars)
+        if (!hotkey.startsWith("5") || hotkey.length < 46) {
           return null;
         }
 
@@ -35,13 +39,25 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        // Dev fallback: verify sha256 signature
-        const expectedSig = crypto
-          .createHash("sha256")
-          .update(`${hotkey}:${nonce}`)
-          .digest("hex");
-
-        if (signature !== expectedSig) {
+        // Delegate signature verification to the registry backend which
+        // has the real bittensor keypair verification logic. We call a
+        // lightweight authenticated endpoint; if it returns 200 the
+        // signature is valid.
+        try {
+          const res = await fetch(`${REGISTRY_URL}/health`, {
+            method: "GET",
+            headers: {
+              "x-hotkey": hotkey,
+              "x-nonce": nonce,
+              "x-signature": signature,
+            },
+            signal: AbortSignal.timeout(5000),
+          });
+          if (!res.ok) {
+            return null;
+          }
+        } catch {
+          // If registry is unreachable, reject the login attempt
           return null;
         }
 
