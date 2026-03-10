@@ -131,4 +131,15 @@ async def readiness() -> dict[str, str | bool]:
     except Exception:
         checks["redis"] = False
 
+    # IPFS check (best-effort)
+    try:
+        from registry.storage.ipfs import IPFSStorage
+        _ipfs = IPFSStorage()
+        checks["ipfs"] = await _ipfs.exists("QmUNLLsPACCAfGEsRBiCAcKRoNk2EHmpPx1oUfHRbbsuEn")
+        if not checks["ipfs"]:
+            checks["status"] = "degraded"
+    except Exception:
+        checks["ipfs"] = False
+        checks["status"] = "degraded"
+
     return checks

@@ -1,37 +1,46 @@
-# Modelionn Prometheus alert rules
-# Mirrors VALayr alert patterns adapted for ML registry
+# Modelionn Prometheus alert rules — ZK Prover Network
 
 groups:
   - name: modelionn_alerts
     rules:
-      - alert: NoValidEvaluations
-        expr: increase(modelionn_evaluations_valid_total[3h]) == 0
-        for: 10m
-        labels:
-          severity: warning
-        annotations:
-          summary: "No valid evaluations in the last 3 hours"
-          description: "The registry has not recorded any successful evaluations recently."
-
-      - alert: HighEvalErrorRate
+      - alert: ProofTimeoutSpikeRate
         expr: >
-          1 - (rate(modelionn_evaluations_valid_total[15m]) / rate(modelionn_evaluations_total[15m])) > 0.5
+          rate(modelionn_proof_jobs_timed_out_total[15m]) > 0.1
         for: 10m
         labels:
           severity: critical
         annotations:
-          summary: "Evaluation error rate exceeds 50%"
-          description: "More than half of evaluations are failing."
+          summary: "Proof job timeout rate spike"
+          description: "More than 10% of proof jobs are timing out in the last 15 minutes."
 
-      - alert: HighDuplicateRate
+      - alert: HighProofDispatchFailureRate
         expr: >
-          rate(modelionn_duplicates_total[1h]) / rate(modelionn_artifacts_published_total[1h]) > 0.8
+          rate(modelionn_proof_dispatch_failures_total[5m]) /
+          rate(modelionn_proof_dispatch_total[5m]) > 0.2
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Proof dispatch failure rate exceeds 20%"
+          description: "A significant portion of proof dispatch tasks are failing."
+
+      - alert: NoOnlineProvers
+        expr: modelionn_provers_online == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "No online provers in the network"
+          description: "All GPU provers are offline — proof generation will fail."
+
+      - alert: LowProverCount
+        expr: modelionn_provers_online < 3
         for: 15m
         labels:
           severity: warning
         annotations:
-          summary: "Duplicate artifact rate exceeds 80%"
-          description: "Most recently published artifacts are duplicates of existing ones."
+          summary: "Online prover count is low"
+          description: "Fewer than 3 provers are online — reduced redundancy and throughput."
 
       - alert: MetricsEndpointDown
         expr: up{job="modelionn"} == 0
@@ -41,15 +50,6 @@ groups:
         annotations:
           summary: "Modelionn metrics endpoint is down"
           description: "Cannot scrape metrics from the Modelionn registry."
-
-      - alert: HighEvaluationLatency
-        expr: modelionn_evaluation_latency_seconds_avg > 30
-        for: 10m
-        labels:
-          severity: warning
-        annotations:
-          summary: "Average evaluation latency exceeds 30 seconds"
-          description: "Evaluation pipeline is running slower than expected."
 
       - alert: HighAPIKeyRejectionRate
         expr: >
@@ -70,3 +70,22 @@ groups:
         annotations:
           summary: "Nonce replay attack detected"
           description: "Excessive nonce replay attempts blocked — possible replay attack in progress."
+
+      - alert: IPFSUnreachable
+        expr: modelionn_ipfs_reachable == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "IPFS node unreachable"
+          description: "The IPFS storage backend is not responding — circuit uploads and proof storage will fail."
+
+      - alert: HighPartitionOrphanRate
+        expr: >
+          increase(modelionn_partitions_reassigned_total[30m]) > 20
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High partition orphan/reassignment rate"
+          description: "Many partitions are being reassigned due to prover failures."
