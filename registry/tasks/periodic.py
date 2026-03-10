@@ -9,8 +9,8 @@ from registry.tasks.celery_app import app
 logger = logging.getLogger(__name__)
 
 
-@app.task(name="registry.tasks.periodic.reset_daily_api_key_counters")
-def reset_daily_api_key_counters() -> dict:
+@app.task(name="registry.tasks.periodic.reset_daily_api_key_counters", bind=True, time_limit=300, max_retries=3, default_retry_delay=60)
+def reset_daily_api_key_counters(self) -> dict:
     """Reset daily usage counters on all API keys (runs at midnight UTC)."""
     import asyncio
 
@@ -37,8 +37,8 @@ async def _reset_counters_async() -> dict:
     return {"reset": count}
 
 
-@app.task(name="registry.tasks.periodic.refresh_prover_rankings")
-def refresh_prover_rankings() -> dict:
+@app.task(name="registry.tasks.periodic.refresh_prover_rankings", bind=True, time_limit=600, max_retries=2, default_retry_delay=120)
+def refresh_prover_rankings(self) -> dict:
     """Recompute aggregate prover scores (runs every 6 hours)."""
     import asyncio
 

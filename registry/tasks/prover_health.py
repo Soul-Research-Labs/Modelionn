@@ -10,8 +10,8 @@ from registry.tasks.celery_app import app
 logger = logging.getLogger(__name__)
 
 
-@app.task(name="registry.tasks.prover_health.check_prover_health")
-def check_prover_health() -> dict:
+@app.task(name="registry.tasks.prover_health.check_prover_health", bind=True, time_limit=120, max_retries=2, default_retry_delay=30)
+def check_prover_health(self) -> dict:
     """Mark provers as offline if they haven't pinged recently."""
     import asyncio
     loop = asyncio.new_event_loop()
@@ -89,8 +89,8 @@ async def _check_health_async() -> dict:
     return {"marked_offline": count, "reassigned_partitions": reassigned}
 
 
-@app.task(name="registry.tasks.prover_health.update_prover_rankings")
-def update_prover_rankings() -> dict:
+@app.task(name="registry.tasks.prover_health.update_prover_rankings", bind=True, time_limit=300, max_retries=2, default_retry_delay=60)
+def update_prover_rankings(self) -> dict:
     """Recalculate prover reliability and ranking scores."""
     import asyncio
     loop = asyncio.new_event_loop()
@@ -124,8 +124,8 @@ async def _update_rankings_async() -> dict:
     return {"updated": updated}
 
 
-@app.task(name="registry.tasks.prover_health.cleanup_stale_jobs")
-def cleanup_stale_jobs() -> dict:
+@app.task(name="registry.tasks.prover_health.cleanup_stale_jobs", bind=True, time_limit=180, max_retries=2, default_retry_delay=30)
+def cleanup_stale_jobs(self) -> dict:
     """Timeout and fail proof jobs that have been running too long."""
     import asyncio
     loop = asyncio.new_event_loop()
