@@ -24,12 +24,22 @@ def check_prover_health() -> dict:
 async def _check_health_async() -> dict:
     from sqlalchemy import select, update
     from registry.core.database import async_session
-    from registry.models.database import ProverCapabilityRow
+    from registry.models.database import ProverCapabilityRow, CircuitPartitionRow
     from registry.core.config import settings
 
     threshold = datetime.now(timezone.utc) - timedelta(seconds=settings.prover_offline_threshold_s)
 
     async with async_session() as db:
+        # Find provers about to go offline
+        going_offline = (await db.execute(
+            select(ProverCapabilityRow.hotkey)
+            .where(
+                ProverCapabilityRow.online == True,
+                ProverCapabilityRow.last_ping_at < threshold,
+            )
+        )).scalars().all()
+
+        # Mark them offline
         result = await db.execute(
             update(ProverCapabilityRow)
             .where(
@@ -39,12 +49,44 @@ async def _check_health_async() -> dict:
             .values(online=False)
         )
         count = result.rowcount
+
+        # Reassign orphaned partitions from offline provers
+        reassigned = 0
+        if going_offline:
+            orphaned = (await db.execute(
+                select(CircuitPartitionRow)
+                .where(
+                    CircuitPartitionRow.assigned_prover.in_(going_offline),
+                    CircuitPartitionRow.status.in_(["assigned", "proving"]),
+                )
+            )).scalars().all()
+
+            if orphaned:
+                # Find an online prover to reassign to
+                online_provers = (await db.execute(
+                    select(ProverCapabilityRow)
+                    .where(ProverCapabilityRow.online == True)
+                    .order_by(ProverCapabilityRow.benchmark_score.desc())
+                )).scalars().all()
+
+                for partition in orphaned:
+                    if online_provers:
+                        new_prover = online_provers[reassigned % len(online_provers)]
+                        partition.assigned_prover = new_prover.hotkey
+                        partition.status = "assigned"
+                        partition.assigned_at = datetime.now(timezone.utc)
+                        reassigned += 1
+                    else:
+                        partition.status = "pending"
+                        partition.assigned_prover = None
+                        reassigned += 1
+
         await db.commit()
 
     if count > 0:
-        logger.info("Marked %d prover(s) as offline", count)
+        logger.info("Marked %d prover(s) as offline, reassigned %d partition(s)", count, reassigned)
 
-    return {"marked_offline": count}
+    return {"marked_offline": count, "reassigned_partitions": reassigned}
 
 
 @app.task(name="registry.tasks.prover_health.update_prover_rankings")
