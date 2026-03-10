@@ -37,16 +37,17 @@ runs:
         FAIL_BELOW: ${{ inputs.fail-below }}
       run: |
         python -c "
-        import json, sys, httpx
+        import json, os, sys, httpx
 
-        url = '${REGISTRY_URL}'.rstrip('/')
-        name = '${ARTIFACT_NAME}'
-        version = '${ARTIFACT_VERSION}'
-        fail_below = int('${FAIL_BELOW}')
+        url = os.environ['REGISTRY_URL'].rstrip('/')
+        name = os.environ['ARTIFACT_NAME']
+        version = os.environ.get('ARTIFACT_VERSION', 'latest')
+        fail_below = int(os.environ.get('FAIL_BELOW', '0'))
+        hotkey = os.environ.get('HOTKEY', '')
 
         headers = {}
-        if '${HOTKEY}':
-            headers['x-hotkey'] = '${HOTKEY}'
+        if hotkey:
+            headers['x-hotkey'] = hotkey
 
         # Search for the artifact
         resp = httpx.get(f'{url}/search', params={'q': name}, timeout=30)
