@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import re
 import uuid
 from datetime import datetime, timezone
 
@@ -26,6 +27,8 @@ from registry.models.database import (
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+_CID_RE = re.compile(r'^Qm[1-9A-HJ-NP-Za-km-z]{44}$|^b[a-z2-7]{58}$')
 
 
 # ── Request / Response Models ────────────────────────────────
@@ -161,6 +164,10 @@ async def request_proof(
     )).scalar_one_or_none()
     if not circuit:
         raise HTTPException(404, "Circuit not found")
+
+    # Validate witness CID format
+    if not _CID_RE.match(body.witness_cid):
+        raise HTTPException(400, f"Invalid witness CID format: {body.witness_cid[:40]}")
 
     # Rate limit: max 10 pending jobs per user
     pending_count = (await db.execute(

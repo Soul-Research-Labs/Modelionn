@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import re
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -18,6 +19,9 @@ from registry.models.database import CircuitRow, ProofType, CircuitCategory
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+# IPFS CID v0 (Qm...) or v1 (ba...)
+_CID_RE = re.compile(r'^Qm[1-9A-HJ-NP-Za-km-z]{44}$|^b[a-z2-7]{58}$')
 
 
 # ── Request / Response Models ────────────────────────────────
@@ -114,6 +118,14 @@ async def upload_circuit(
 
     if body.num_constraints > settings.max_circuit_constraints:
         raise HTTPException(400, f"Circuit exceeds max constraints ({settings.max_circuit_constraints})")
+
+    # Validate IPFS CID format
+    if not _CID_RE.match(body.ipfs_cid):
+        raise HTTPException(400, f"Invalid IPFS CID format: {body.ipfs_cid[:40]}")
+    if body.proving_key_cid and not _CID_RE.match(body.proving_key_cid):
+        raise HTTPException(400, "Invalid proving_key_cid format")
+    if body.verification_key_cid and not _CID_RE.match(body.verification_key_cid):
+        raise HTTPException(400, "Invalid verification_key_cid format")
 
     # Compute circuit hash
     hash_input = f"{body.name}:{body.version}:{body.ipfs_cid}:{body.num_constraints}"
