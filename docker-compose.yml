@@ -1,0 +1,158 @@
+services:
+  registry:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - MODELIONN_IPFS_API_URL=http://ipfs:5001
+      - MODELIONN_DATABASE_URL=sqlite+aiosqlite:///./data/modelionn.db
+      - MODELIONN_REDIS_URL=redis://redis:6379/0
+      - MODELIONN_CELERY_BROKER_URL=redis://redis:6379/1
+      - MODELIONN_CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - MODELIONN_CORS_ORIGINS=http://localhost:3000,http://web:3000
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      redis:
+        condition: service_healthy
+      ipfs:
+        condition: service_started
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import httpx; httpx.get('http://localhost:8000/health').raise_for_status()",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  worker:
+    build: .
+    command: celery -A registry.tasks.celery_app worker --loglevel=info --concurrency=2 -Q default,proof_dispatch
+    environment:
+      - MODELIONN_REDIS_URL=redis://redis:6379/0
+      - MODELIONN_CELERY_BROKER_URL=redis://redis:6379/1
+      - MODELIONN_CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - MODELIONN_DATABASE_URL=sqlite+aiosqlite:///./data/modelionn.db
+      - MODELIONN_IPFS_API_URL=http://ipfs:5001
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      redis:
+        condition: service_healthy
+      ipfs:
+        condition: service_started
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "celery",
+          "-A",
+          "registry.tasks.celery_app",
+          "inspect",
+          "ping",
+          "--timeout",
+          "5",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  beat:
+    build: .
+    command: celery -A registry.tasks.celery_app beat --loglevel=info
+    environment:
+      - MODELIONN_REDIS_URL=redis://redis:6379/0
+      - MODELIONN_CELERY_BROKER_URL=redis://redis:6379/1
+      - MODELIONN_CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - MODELIONN_DATABASE_URL=sqlite+aiosqlite:///./data/modelionn.db
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  flower:
+    build: .
+    command: celery -A registry.tasks.celery_app flower --port=5555
+    ports:
+      - "5555:5555"
+    environment:
+      - MODELIONN_CELERY_BROKER_URL=redis://redis:6379/1
+      - MODELIONN_CELERY_RESULT_BACKEND=redis://redis:6379/2
+    depends_on:
+      - redis
+
+  ipfs:
+    image: ipfs/kubo:latest
+    ports:
+      - "4001:4001" # swarm
+      - "5001:5001" # API
+      - "8080:8080" # gateway
+    volumes:
+      - ipfs_data:/data/ipfs
+
+  web:
+    build: ./web
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://registry:8000
+      - NEXTAUTH_URL=http://localhost:3000
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-change-me-in-production}
+    depends_on:
+      registry:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  prometheus:
+    image: prom/prometheus:v2.52.0
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./docker/prometheus:/etc/prometheus:ro
+    depends_on:
+      registry:
+        condition: service_healthy
+
+  grafana:
+    image: grafana/grafana:11.0.0
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/var/lib/grafana/dashboards/dashboard.json
+    volumes:
+      - ./grafana:/var/lib/grafana/dashboards:ro
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
+
+volumes:
+  ipfs_data:
+  redis_data:
+  pg_data:

@@ -1,0 +1,82 @@
+name: Modelionn Scan
+description: Run Modelionn artifact validation and quality checks in CI
+inputs:
+  registry-url:
+    description: URL of the Modelionn registry
+    required: true
+  artifact-name:
+    description: Name of the artifact to scan
+    required: true
+  artifact-version:
+    description: Version of the artifact to scan
+    required: false
+    default: latest
+  hotkey:
+    description: Bittensor hotkey for authentication
+    required: false
+    default: ""
+  fail-below:
+    description: Minimum quality score (0-100) to pass the check
+    required: false
+    default: "0"
+
+runs:
+  using: composite
+  steps:
+    - name: Install SDK
+      shell: bash
+      run: pip install httpx
+
+    - name: Run scan
+      shell: bash
+      env:
+        REGISTRY_URL: ${{ inputs.registry-url }}
+        ARTIFACT_NAME: ${{ inputs.artifact-name }}
+        ARTIFACT_VERSION: ${{ inputs.artifact-version }}
+        HOTKEY: ${{ inputs.hotkey }}
+        FAIL_BELOW: ${{ inputs.fail-below }}
+      run: |
+        python -c "
+        import json, sys, httpx
+
+        url = '${REGISTRY_URL}'.rstrip('/')
+        name = '${ARTIFACT_NAME}'
+        version = '${ARTIFACT_VERSION}'
+        fail_below = int('${FAIL_BELOW}')
+
+        headers = {}
+        if '${HOTKEY}':
+            headers['x-hotkey'] = '${HOTKEY}'
+
+        # Search for the artifact
+        resp = httpx.get(f'{url}/search', params={'q': name}, timeout=30)
+        resp.raise_for_status()
+        results = resp.json()
+
+        artifacts = results.get('artifacts', results.get('items', []))
+        match = None
+        for a in artifacts:
+            if a.get('name') == name and (version == 'latest' or a.get('version') == version):
+                match = a
+                break
+
+        if match is None:
+            print(f'::error::Artifact {name}@{version} not found')
+            sys.exit(1)
+
+        # Get report
+        aid = match.get('id')
+        if aid:
+            report = httpx.get(f'{url}/reports/{aid}', timeout=30)
+            if report.status_code == 200:
+                data = report.json()
+                print(json.dumps(data, indent=2))
+                qs = data.get('artifact', {}).get('quality_score')
+                if qs is not None and qs < fail_below:
+                    print(f'::error::Quality score {qs:.0f} is below threshold {fail_below}')
+                    sys.exit(1)
+                elif qs is not None:
+                    print(f'::notice::Quality score: {qs:.0f}/100')
+
+        print(f'::notice::Artifact {name}@{version} validated successfully')
+        "

@@ -1,0 +1,14 @@
+[build-system]
+requires = ["maturin>=1.4"]
+build-backend = "maturin"
+
+[project]
+name = "modelionn-prover"
+version = "0.1.0"
+description = "GPU-accelerated ZK proof engine for Modelionn"
+requires-python = ">=3.11"
+
+[tool.maturin]
+features = ["python"]
+python-source = "python"
+module-name = "modelionn_prover._native"

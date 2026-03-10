@@ -1,0 +1,105 @@
+# Production Docker Compose — use with:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: modelionn
+      POSTGRES_USER: modelionn
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U modelionn"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  registry:
+    restart: unless-stopped
+    environment:
+      MODELIONN_DEBUG: "false"
+      MODELIONN_SECRET_KEY: ${MODELIONN_SECRET_KEY:?Set MODELIONN_SECRET_KEY}
+      MODELIONN_DATABASE_URL: postgresql+asyncpg://modelionn:${POSTGRES_PASSWORD}@postgres:5432/modelionn
+      MODELIONN_REDIS_URL: redis://redis:6379/0
+      MODELIONN_CELERY_BROKER_URL: redis://redis:6379/1
+      MODELIONN_CELERY_RESULT_BACKEND: redis://redis:6379/2
+      MODELIONN_REQUIRE_SIGNATURE_VERIFICATION: "true"
+      MODELIONN_CORS_ORIGINS: ${CORS_ORIGINS:-https://your-domain.com}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      ipfs:
+        condition: service_started
+
+  worker:
+    restart: unless-stopped
+    environment:
+      MODELIONN_DATABASE_URL: postgresql+asyncpg://modelionn:${POSTGRES_PASSWORD}@postgres:5432/modelionn
+      MODELIONN_REDIS_URL: redis://redis:6379/0
+      MODELIONN_CELERY_BROKER_URL: redis://redis:6379/1
+      MODELIONN_CELERY_RESULT_BACKEND: redis://redis:6379/2
+
+  beat:
+    restart: unless-stopped
+    environment:
+      MODELIONN_DATABASE_URL: postgresql+asyncpg://modelionn:${POSTGRES_PASSWORD}@postgres:5432/modelionn
+      MODELIONN_REDIS_URL: redis://redis:6379/0
+      MODELIONN_CELERY_BROKER_URL: redis://redis:6379/1
+      MODELIONN_CELERY_RESULT_BACKEND: redis://redis:6379/2
+
+  redis:
+    restart: unless-stopped
+
+  ipfs:
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "ipfs id || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 3
+
+  web:
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: ${API_URL:-https://api.your-domain.com}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-https://your-domain.com}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?Set NEXTAUTH_SECRET}
+
+  flower:
+    restart: unless-stopped
+    environment:
+      FLOWER_BASIC_AUTH: ${FLOWER_USER:-admin}:${FLOWER_PASSWORD:?Set FLOWER_PASSWORD}
+    # In production, expose via reverse proxy only — no direct port mapping
+    ports: !reset []
+
+  prometheus:
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -q --spider http://localhost:9090/-/healthy || exit 1",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  grafana:
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -q --spider http://localhost:3000/api/health || exit 1",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  pg_data:

@@ -1,0 +1,72 @@
+# Modelionn Prometheus alert rules
+# Mirrors VALayr alert patterns adapted for ML registry
+
+groups:
+  - name: modelionn_alerts
+    rules:
+      - alert: NoValidEvaluations
+        expr: increase(modelionn_evaluations_valid_total[3h]) == 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "No valid evaluations in the last 3 hours"
+          description: "The registry has not recorded any successful evaluations recently."
+
+      - alert: HighEvalErrorRate
+        expr: >
+          1 - (rate(modelionn_evaluations_valid_total[15m]) / rate(modelionn_evaluations_total[15m])) > 0.5
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Evaluation error rate exceeds 50%"
+          description: "More than half of evaluations are failing."
+
+      - alert: HighDuplicateRate
+        expr: >
+          rate(modelionn_duplicates_total[1h]) / rate(modelionn_artifacts_published_total[1h]) > 0.8
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Duplicate artifact rate exceeds 80%"
+          description: "Most recently published artifacts are duplicates of existing ones."
+
+      - alert: MetricsEndpointDown
+        expr: up{job="modelionn"} == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Modelionn metrics endpoint is down"
+          description: "Cannot scrape metrics from the Modelionn registry."
+
+      - alert: HighEvaluationLatency
+        expr: modelionn_evaluation_latency_seconds_avg > 30
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Average evaluation latency exceeds 30 seconds"
+          description: "Evaluation pipeline is running slower than expected."
+
+      - alert: HighAPIKeyRejectionRate
+        expr: >
+          rate(modelionn_api_key_rejections_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High API key rejection rate"
+          description: "More than 10 API key rejections per second — possible credential stuffing."
+
+      - alert: NonceReplayAttack
+        expr: >
+          increase(modelionn_nonce_replays_blocked_total[5m]) > 50
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Nonce replay attack detected"
+          description: "Excessive nonce replay attempts blocked — possible replay attack in progress."

@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.venv/
+venv/
+env/
+
+# Data
+data/
+*.db
+*.sqlite3
+
+# Caches
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Logs
+*.log
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+
+# Git
+.git/
+.gitignore
+
+# Tests & docs (not needed in image)
+tests/
+docs/
+scripts/
+*.md
+!README.md
+
+# CI
+.github/
+
+# Node (frontend built separately)
+web/node_modules/
+web/.next/
+
+# Docker files
+docker-compose*.yml
+Dockerfile
+.dockerignore
