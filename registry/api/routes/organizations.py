@@ -201,6 +201,101 @@ async def add_member(
     return MemberResponse(user_id=user.id, hotkey=hotkey, role=role.value)
 
 
+@router.patch("/{slug}/members/{member_hotkey}", response_model=MemberResponse)
+async def update_member_role(
+    slug: str,
+    member_hotkey: str,
+    role: OrgRole,
+    db: AsyncSession = Depends(get_db),
+    publisher: str = Depends(verify_publisher),
+) -> MemberResponse:
+    """Update a member's role (ADMIN only)."""
+    org = await _get_org_by_slug(db, slug)
+    await _require_role(db, publisher, org.id, OrgRole.ADMIN)
+
+    target_user = (await db.execute(
+        select(UserRow).where(UserRow.hotkey == member_hotkey)
+    )).scalar_one_or_none()
+    if not target_user:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
+
+    membership = (await db.execute(
+        select(MembershipRow).where(
+            MembershipRow.user_id == target_user.id,
+            MembershipRow.org_id == org.id,
+        )
+    )).scalar_one_or_none()
+    if not membership:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User is not a member of this org")
+
+    old_role = membership.role
+    membership.role = role
+
+    await log_audit(
+        db,
+        action=AuditAction.MEMBER_ROLE_CHANGED,
+        resource_type="membership",
+        resource_id=f"{org.id}:{target_user.id}",
+        actor_hotkey=publisher,
+        org_id=org.id,
+        old_value={"role": old_role if isinstance(old_role, str) else old_role.value},
+        new_value={"role": role.value},
+    )
+
+    await db.commit()
+    return MemberResponse(user_id=target_user.id, hotkey=member_hotkey, role=role.value)
+
+
+@router.delete("/{slug}/members/{member_hotkey}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_member(
+    slug: str,
+    member_hotkey: str,
+    db: AsyncSession = Depends(get_db),
+    publisher: str = Depends(verify_publisher),
+) -> None:
+    """Remove a member from the organization (ADMIN only).
+
+    Admins cannot remove themselves — transfer ownership first.
+    """
+    org = await _get_org_by_slug(db, slug)
+    await _require_role(db, publisher, org.id, OrgRole.ADMIN)
+
+    if member_hotkey == publisher:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "Cannot remove yourself — transfer admin role to another member first",
+        )
+
+    target_user = (await db.execute(
+        select(UserRow).where(UserRow.hotkey == member_hotkey)
+    )).scalar_one_or_none()
+    if not target_user:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
+
+    membership = (await db.execute(
+        select(MembershipRow).where(
+            MembershipRow.user_id == target_user.id,
+            MembershipRow.org_id == org.id,
+        )
+    )).scalar_one_or_none()
+    if not membership:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User is not a member of this org")
+
+    await db.delete(membership)
+
+    await log_audit(
+        db,
+        action=AuditAction.MEMBER_REMOVED,
+        resource_type="membership",
+        resource_id=f"{org.id}:{target_user.id}",
+        actor_hotkey=publisher,
+        org_id=org.id,
+        old_value={"hotkey": member_hotkey, "role": membership.role if isinstance(membership.role, str) else membership.role.value},
+    )
+
+    await db.commit()
+
+
 # ── Helpers ─────────────────────────────────────────────────
 
 async def _ensure_user(db: AsyncSession, hotkey: str) -> UserRow:
