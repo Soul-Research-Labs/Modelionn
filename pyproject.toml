@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "modelionn"
-version = "0.1.0"
+version = "0.2.0"
 description = "The Open Intelligence Registry — incentive-native AI artifact registry on Bittensor"
 readme = "README.md"
 license = "MIT"

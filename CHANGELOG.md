@@ -2,6 +2,47 @@
 
 All notable changes to Modelionn are documented in this file.
 
+## [0.2.0] — Unreleased
+
+### Security
+
+- **Auth bypass closed**: Circuits, proofs, and provers endpoints now require
+  authenticated headers (x-hotkey/x-signature/x-nonce) via `verify_publisher`
+  dependency instead of accepting unauthenticated `?hotkey=` query params
+- **CSRF hardened**: Reject state-changing requests without Origin/Referer header;
+  exempt Bittensor wallet auth and Bearer tokens
+- **Request-ID validation**: Reject arbitrary X-Request-ID values; only accept
+  hex UUID strings (max 36 chars) to prevent log injection
+- **Redis auth in prod**: Require `REDIS_PASSWORD` for all Redis connections
+- **IPFS API restricted**: Remove port 5001 exposure in production compose
+- **Grafana anonymous access disabled** in production overlay
+- **Resource limits** added for registry, worker, and beat services
+- **Secret validation**: Entrypoint now validates `MODELIONN_SECRET_KEY` in prod
+- **Cargo.lock required**: Dockerfile uses strict COPY for reproducible Rust builds
+
+### Fixed
+
+- Fix `registry.core.database` import errors (module doesn't exist) —
+  use `registry.core.deps.async_session` across all Celery tasks
+- Fix `download_bytes()` AttributeError — add alias in `StorageBackend` base class
+- Fix `UploadResult` type mismatch in `proof_aggregate.py` — extract `.cid`
+- Fix empty `proof_systems` dict in `/provers/stats` — now aggregates from
+  `supported_proof_types_csv` across all provers
+- Remove duplicate `refresh_prover_rankings` Celery task (was scheduled at
+  both 6h and 30min intervals)
+
+### Added
+
+- `asyncpg>=0.29` added to project dependencies (required for prod PostgreSQL)
+- 39 new tests: middleware (CSRF, request-ID, rate limit, security headers,
+  tenant), reward scoring, and anti-Sybil mechanisms
+
+### Changed
+
+- Version bumped to 0.2.0 (aligned pyproject.toml with app.py)
+- CONTRIBUTING.md: remove ghost `tests/evaluation/` references
+- DEPLOYMENT.md: fix `DATABASE_URL` → `MODELIONN_DATABASE_URL` in troubleshooting
+
 ## [Unreleased]
 
 ### Added

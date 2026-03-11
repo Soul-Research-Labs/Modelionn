@@ -61,10 +61,9 @@ pytest tests/registry/test_phase_f.py -v
 
 Test breakdown:
 
-- `tests/registry/` — API routes, middleware, core logic, security (~350 tests)
-- `tests/subnet/` — Consensus, reward, commit-reveal (~20 tests)
-- `tests/evaluation/` — Benchmark metrics, adversarial (~11 tests)
-- `tests/sdk/` — Client caching, connection pooling (~4 tests)
+- `tests/registry/` — API routes, middleware, core logic, security
+- `tests/subnet/` — Consensus, reward, anti-sybil, miner, validator
+- `tests/sdk/` — Client caching, connection pooling
 - `tests/cli/` — CLI commands
 - `tests/e2e/` — End-to-end integration pipeline
 
@@ -74,7 +73,7 @@ We use **ruff** for linting and **mypy** for type checking:
 
 ```bash
 make lint        # ruff check .
-make typecheck   # mypy registry subnet evaluation --ignore-missing-imports
+make typecheck   # mypy registry subnet --ignore-missing-imports
 ```
 
 Key rules:
@@ -106,7 +105,7 @@ Use conventional commits:
 - **FastAPI** with async SQLAlchemy for the registry
 - **Pydantic v2** for all request/response schemas
 - **SQLAlchemy 2.0** async ORM with aiosqlite (dev) / asyncpg (production)
-- **Celery** with Redis broker for async evaluation jobs
+- **Celery** with Redis broker for async proof-generation jobs
 - **Next.js 14** App Router for the web dashboard
 - Middleware order matters: RequestID → SecurityHeaders → CSRF → Tenant → RateLimit → Metrics (outermost)
 

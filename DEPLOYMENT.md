@@ -145,7 +145,7 @@ server {
 | Symptom                            | Fix                                                                    |
 | ---------------------------------- | ---------------------------------------------------------------------- |
 | `RuntimeError: Default secret key` | Set `MODELIONN_SECRET_KEY` env var (min 32 chars)                      |
-| `DATABASE_URL must be set`         | Set `DATABASE_URL` in `.env` — entrypoint validates before start       |
+| `DATABASE_URL must be set`         | Set `MODELIONN_DATABASE_URL` in `.env` — entrypoint validates before start |
 | Redis connection refused           | Check Redis container is healthy: `docker compose ps redis`            |
 | IPFS timeouts                      | Increase `MODELIONN_IPFS_TIMEOUT` or check IPFS node                   |
 | 403 on webhook endpoints           | Ensure user has org membership via `/orgs/{slug}/members`              |
