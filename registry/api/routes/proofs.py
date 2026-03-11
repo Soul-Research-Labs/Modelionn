@@ -335,7 +335,7 @@ async def verify_proof(
     body: VerifyRequest,
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    """Verify a generated proof."""
+    """Verify a generated proof using the Rust prover engine."""
     proof = (await db.execute(select(ProofRow).where(ProofRow.id == body.proof_id))).scalar_one_or_none()
     if not proof:
         raise HTTPException(404, "Proof not found")
@@ -344,16 +344,79 @@ async def verify_proof(
     if not circuit:
         raise HTTPException(404, "Circuit not found")
 
-    # In production: invoke the Rust prover engine for actual verification
-    # For now, check if proof was already verified
-    valid = proof.verified
-
     proof_type_val = proof.proof_type if isinstance(proof.proof_type, str) else proof.proof_type.value
+
+    # If already verified, return cached result
+    if proof.verified:
+        return {
+            "valid": True,
+            "proof_id": proof.id,
+            "circuit_id": circuit.id,
+            "proof_system": proof_type_val,
+            "details": "Previously verified",
+        }
+
+    # Attempt real verification via Rust prover engine
+    valid = False
+    details = "Verification pending"
+    try:
+        from prover.python.modelionn_prover import (
+            ProverEngine, CircuitData, ProofResult, ProofSystem, CircuitType,
+        )
+        from registry.storage.ipfs import IPFSStorage
+
+        storage = IPFSStorage()
+
+        # Download proof data and verification key from IPFS
+        proof_bytes = await storage.download_bytes(proof.proof_data_cid)
+        vk_bytes = b""
+        if circuit.verification_key_cid:
+            vk_bytes = await storage.download_bytes(circuit.verification_key_cid)
+
+        ps_map = {
+            "groth16": ProofSystem.GROTH16, "plonk": ProofSystem.PLONK,
+            "halo2": ProofSystem.HALO2, "stark": ProofSystem.STARK,
+        }
+        ps = ps_map.get(proof_type_val, ProofSystem.GROTH16)
+
+        circuit_data = CircuitData(
+            id=str(circuit.id), name=circuit.name, proof_system=ps,
+            circuit_type=CircuitType.GENERAL, num_constraints=circuit.num_constraints,
+            num_public_inputs=0, num_private_inputs=0,
+            data=b"", proving_key=b"", verification_key=vk_bytes,
+        )
+
+        public_inputs = b""
+        if body.public_inputs:
+            public_inputs = json.dumps(body.public_inputs).encode()
+        elif proof.public_inputs_json:
+            public_inputs = proof.public_inputs_json.encode()
+
+        proof_result = ProofResult(
+            proof_system=ps, data=proof_bytes,
+            public_inputs=public_inputs,
+            generation_time_ms=0, proof_size_bytes=len(proof_bytes),
+        )
+
+        engine = ProverEngine()
+        valid = await engine.verify(circuit_data, proof_result)
+        details = "Verification passed" if valid else "Verification failed"
+
+        # Persist verification result
+        proof.verified = valid
+        proof.verified_by = "registry_api"
+        await db.commit()
+
+    except ImportError:
+        details = "Rust prover engine unavailable — verification deferred to validator network"
+    except Exception as exc:
+        logger.error("Proof verification error for proof %d: %s", proof.id, exc)
+        details = f"Verification error: {str(exc)[:200]}"
 
     return {
         "valid": valid,
         "proof_id": proof.id,
         "circuit_id": circuit.id,
         "proof_system": proof_type_val,
-        "details": "Verified" if valid else "Verification pending — submit to validator network",
+        "details": details,
     }
