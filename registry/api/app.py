@@ -67,6 +67,7 @@ from registry.api.middleware import (  # noqa: E402
 )
 from registry.api.middleware.metrics import MetricsMiddleware  # noqa: E402
 from registry.api.middleware.api_key_auth import APIKeyAuthMiddleware  # noqa: E402
+from registry.api.middleware.request_size import RequestSizeLimitMiddleware  # noqa: E402
 
 app.add_middleware(
     CORSMiddleware,
@@ -78,6 +79,7 @@ app.add_middleware(
 app.add_middleware(MetricsMiddleware)
 app.add_middleware(CSRFMiddleware)
 app.add_middleware(RateLimitMiddleware)
+app.add_middleware(RequestSizeLimitMiddleware, max_content_length=50 * 1024 * 1024)  # 50 MB
 app.add_middleware(APIKeyAuthMiddleware)
 app.add_middleware(TenantMiddleware)
 app.add_middleware(SecurityHeadersMiddleware, enable_hsts=not settings.debug)
