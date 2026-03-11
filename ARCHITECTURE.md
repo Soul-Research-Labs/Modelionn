@@ -44,13 +44,14 @@ Modelionn is a GPU-accelerated ZK prover network built on Bittensor. It combines
 
 - **`app.py`** — FastAPI application factory, router registration, middleware stack
 - **`routes/`** — 7 route modules: circuits, proofs, provers, organizations, audit, api_keys, metrics
-- **`middleware/`** — Request processing pipeline (7 layers):
+- **`middleware/`** — Request processing pipeline (8 layers):
   - `request_id.py` — Unique request ID propagation (`X-Request-ID`)
   - `security_headers.py` — CSP, HSTS, X-Frame-Options, X-Content-Type-Options
   - `csrf.py` — Origin validation on state-changing methods; Bearer tokens exempt
   - `tenant.py` — Multi-tenant org isolation via `X-Org-Slug`
   - `api_key_auth.py` — Timing-safe API key validation (`hmac.compare_digest`)
   - `rate_limit.py` — Sliding window rate limiter (Redis + in-memory fallback)
+  - `request_size.py` — 50 MB request body limit (returns 413)
   - `metrics.py` — Prometheus counters/histograms (thread-safe in-flight gauge)
 
 ### Core (`registry/core/`)
@@ -67,8 +68,9 @@ Modelionn is a GPU-accelerated ZK prover network built on Bittensor. It combines
 
 ### Tasks (`registry/tasks/`)
 
-- **`celery_app.py`** — Celery configuration with Redis broker (result TTL: 1h)
+- **`celery_app.py`** — Celery configuration with Redis broker (result TTL: 1h), beat schedule for aggregation
 - **`proof_dispatch.py`** — Distributed proof pipeline (partition → dispatch → prove → aggregate → verify)
+- **`proof_aggregate.py`** — Periodic sweep of PROVING jobs: downloads partition fragments from IPFS, concatenates, uploads aggregated proof, verifies via Rust engine, transitions to COMPLETED/FAILED/TIMEOUT
 - **`prover_health.py`** — Prover health monitoring, ranking updates, stale job cleanup
 - **`periodic.py`** — Scheduled maintenance (API key counter reset, prover ranking refresh)
 
@@ -83,7 +85,7 @@ Next.js 14 App Router with:
 
 ## SDK (`sdk/`)
 
-Python SDK with connection pooling, automatic retry with backoff, and typed methods for all ZK API operations (circuits, proofs, provers, network stats).
+Python SDK with connection pooling, automatic retry with backoff, and typed methods for all ZK API operations (circuits, proofs, provers, network stats, organizations, API keys).
 
 ## CLI (`cli/`)
 
@@ -100,6 +102,9 @@ Typer-based CLI with Rich output:
 - `modelionn info` — Registry health check
 - `modelionn login` — Save config to `~/.modelionn.toml`
 - `modelionn auth` — Show current authentication status
+- `modelionn org` — Organization management (list, create, members, add/remove member)
+- `modelionn api-key` — API key management (create, list, revoke)
+- `modelionn audit` — Audit log queries with filters
 - `--json` flag for machine-readable output
 
 ## Subnet (`subnet/`)
