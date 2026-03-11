@@ -57,6 +57,10 @@ app.conf.update(
             "task": "registry.tasks.prover_health.cleanup_stale_jobs",
             "schedule": crontab(minute="*/5"),  # every 5 minutes
         },
+        "aggregate-completed-jobs": {
+            "task": "registry.tasks.proof_aggregate.aggregate_completed_jobs",
+            "schedule": 30.0,  # every 30 seconds
+        },
     },
 )
 
