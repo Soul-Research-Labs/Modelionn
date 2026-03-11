@@ -19,13 +19,18 @@ services:
 
   registry:
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 1G
     environment:
       MODELIONN_DEBUG: "false"
       MODELIONN_SECRET_KEY: ${MODELIONN_SECRET_KEY:?Set MODELIONN_SECRET_KEY}
       MODELIONN_DATABASE_URL: postgresql+asyncpg://modelionn:${POSTGRES_PASSWORD}@postgres:5432/modelionn
-      MODELIONN_REDIS_URL: redis://redis:6379/0
-      MODELIONN_CELERY_BROKER_URL: redis://redis:6379/1
-      MODELIONN_CELERY_RESULT_BACKEND: redis://redis:6379/2
+      MODELIONN_REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      MODELIONN_CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis:6379/1
+      MODELIONN_CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD}@redis:6379/2
       MODELIONN_REQUIRE_SIGNATURE_VERIFICATION: "true"
       MODELIONN_CORS_ORIGINS: ${CORS_ORIGINS:-https://your-domain.com}
     depends_on:
@@ -38,25 +43,39 @@ services:
 
   worker:
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "4"
+          memory: 2G
     environment:
       MODELIONN_DATABASE_URL: postgresql+asyncpg://modelionn:${POSTGRES_PASSWORD}@postgres:5432/modelionn
-      MODELIONN_REDIS_URL: redis://redis:6379/0
-      MODELIONN_CELERY_BROKER_URL: redis://redis:6379/1
-      MODELIONN_CELERY_RESULT_BACKEND: redis://redis:6379/2
+      MODELIONN_REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      MODELIONN_CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis:6379/1
+      MODELIONN_CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD}@redis:6379/2
 
   beat:
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
     environment:
       MODELIONN_DATABASE_URL: postgresql+asyncpg://modelionn:${POSTGRES_PASSWORD}@postgres:5432/modelionn
-      MODELIONN_REDIS_URL: redis://redis:6379/0
-      MODELIONN_CELERY_BROKER_URL: redis://redis:6379/1
-      MODELIONN_CELERY_RESULT_BACKEND: redis://redis:6379/2
+      MODELIONN_REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      MODELIONN_CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis:6379/1
+      MODELIONN_CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD}@redis:6379/2
 
   redis:
     restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:?Set REDIS_PASSWORD}
 
   ipfs:
     restart: unless-stopped
+    # In production, only expose swarm port — API stays internal
+    ports: !override
+      - "4001:4001"
     healthcheck:
       test: ["CMD-SHELL", "ipfs id || exit 1"]
       interval: 15s
@@ -91,6 +110,8 @@ services:
 
   grafana:
     restart: unless-stopped
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
     healthcheck:
       test:
         [

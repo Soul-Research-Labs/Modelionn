@@ -7,6 +7,7 @@ set -e
 # Optional validation for production
 if [ "${MODELIONN_ENV:-development}" = "production" ]; then
   : "${MODELIONN_REDIS_URL:?MODELIONN_REDIS_URL must be set in production}"
+  : "${MODELIONN_SECRET_KEY:?MODELIONN_SECRET_KEY must be set in production}"
   : "${NEXTAUTH_SECRET:?NEXTAUTH_SECRET must be set in production}"
 fi
 

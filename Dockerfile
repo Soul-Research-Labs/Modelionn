@@ -6,7 +6,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /prover
-COPY prover/Cargo.toml prover/Cargo.lock* ./
+COPY prover/Cargo.toml prover/Cargo.lock ./
 COPY prover/src/ src/
 
 # Build the prover library (release mode, default features only for base image)
