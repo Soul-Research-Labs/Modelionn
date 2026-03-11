@@ -342,3 +342,72 @@ class ModelionnClient:
         """Get organization by slug."""
         resp = self._request_with_retry("GET", f"{self._url}/orgs/{slug}")
         return resp.json()
+
+    def create_org(self, *, name: str, slug: str) -> dict[str, Any]:
+        """Create a new organization."""
+        resp = self._request_with_retry(
+            "POST", f"{self._url}/orgs",
+            json={"name": name, "slug": slug},
+            headers=self._auth_headers(),
+        )
+        return resp.json()
+
+    def list_members(self, slug: str, *, page: int = 1, page_size: int = 20) -> dict[str, Any]:
+        """List members of an organization."""
+        resp = self._request_with_retry(
+            "GET", f"{self._url}/orgs/{slug}/members",
+            params={"page": page, "page_size": page_size},
+        )
+        return resp.json()
+
+    def add_member(self, slug: str, *, hotkey: str, role: str = "viewer") -> dict[str, Any]:
+        """Add a member to an organization (requires ADMIN role)."""
+        resp = self._request_with_retry(
+            "POST", f"{self._url}/orgs/{slug}/members",
+            params={"hotkey": hotkey, "role": role},
+            headers=self._auth_headers(),
+        )
+        return resp.json()
+
+    def update_member_role(self, slug: str, member_hotkey: str, *, role: str) -> dict[str, Any]:
+        """Update a member's role in an organization (requires ADMIN role)."""
+        resp = self._request_with_retry(
+            "PATCH", f"{self._url}/orgs/{slug}/members/{member_hotkey}",
+            params={"role": role},
+            headers=self._auth_headers(),
+        )
+        return resp.json()
+
+    def remove_member(self, slug: str, member_hotkey: str) -> None:
+        """Remove a member from an organization (requires ADMIN role)."""
+        self._request_with_retry(
+            "DELETE", f"{self._url}/orgs/{slug}/members/{member_hotkey}",
+            headers=self._auth_headers(),
+        )
+
+    # ── API Keys ─────────────────────────────────────────────
+
+    def create_api_key(self, *, label: str = "", daily_limit: int = 1000) -> dict[str, Any]:
+        """Create a new API key. Returns the key in plaintext (only time it's visible)."""
+        resp = self._request_with_retry(
+            "POST", f"{self._url}/api-keys",
+            json={"label": label, "daily_limit": daily_limit},
+            headers=self._auth_headers(),
+        )
+        return resp.json()
+
+    def list_api_keys(self, *, page: int = 1, page_size: int = 20) -> list[dict[str, Any]]:
+        """List API keys for the authenticated user."""
+        resp = self._request_with_retry(
+            "GET", f"{self._url}/api-keys",
+            params={"page": page, "page_size": page_size},
+            headers=self._auth_headers(),
+        )
+        return resp.json()
+
+    def revoke_api_key(self, key_id: int) -> None:
+        """Revoke (delete) an API key."""
+        self._request_with_retry(
+            "DELETE", f"{self._url}/api-keys/{key_id}",
+            headers=self._auth_headers(),
+        )
