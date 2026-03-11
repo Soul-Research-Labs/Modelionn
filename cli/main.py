@@ -292,10 +292,6 @@ def network_stats(
     console.print(f"  Total GPU VRAM:  {vram_gb:.1f} GB")
 
 
-if __name__ == "__main__":
-    app()
-
-
 # ── Auth status ──────────────────────────────────────────────
 
 @app.command(name="auth")
@@ -341,3 +337,206 @@ def login(
     console.print(f"[green]✓[/] Config saved to {_CONFIG_PATH}")
     for line in lines:
         console.print(f"  {line}")
+
+
+# ── Organizations ────────────────────────────────────────────
+
+org_app = typer.Typer(help="Organization management")
+app.add_typer(org_app, name="org")
+
+
+@org_app.command(name="list")
+def org_list(
+    registry: str = typer.Option("", "--registry", "-r"),
+    hotkey: str = typer.Option("", "--hotkey", "-k"),
+    output_json: bool = typer.Option(False, "--json"),
+):
+    """List organizations you belong to."""
+    client = _client(registry, hotkey)
+    result = client.list_my_orgs()
+    if output_json:
+        _json_output(result)
+        return
+    table = Table(title="My Organizations")
+    table.add_column("ID", justify="right")
+    table.add_column("Name", style="bold")
+    table.add_column("Slug")
+    for org in result:
+        table.add_row(str(org.get("id", "")), org.get("name", ""), org.get("slug", ""))
+    console.print(table)
+
+
+@org_app.command(name="create")
+def org_create(
+    name: str = typer.Option(..., "--name", "-n"),
+    slug: str = typer.Option(..., "--slug", "-s"),
+    registry: str = typer.Option("", "--registry", "-r"),
+    hotkey: str = typer.Option("", "--hotkey", "-k"),
+):
+    """Create a new organization."""
+    client = _client(registry, hotkey)
+    result = client.create_org(name=name, slug=slug)
+    console.print(f"[green]✓[/] Organization created — id={result.get('id')} slug={result.get('slug')}")
+
+
+@org_app.command(name="members")
+def org_members(
+    slug: str = typer.Argument(..., help="Organization slug"),
+    registry: str = typer.Option("", "--registry", "-r"),
+    output_json: bool = typer.Option(False, "--json"),
+):
+    """List members of an organization."""
+    client = _client(registry, "")
+    result = client.list_members(slug)
+    if output_json:
+        _json_output(result)
+        return
+    table = Table(title=f"Members of {slug}")
+    table.add_column("User ID", justify="right")
+    table.add_column("Hotkey")
+    table.add_column("Role")
+    for m in result.get("items", []):
+        table.add_row(str(m.get("user_id", "")), m.get("hotkey", ""), m.get("role", ""))
+    console.print(table)
+
+
+@org_app.command(name="add-member")
+def org_add_member(
+    slug: str = typer.Argument(..., help="Organization slug"),
+    member_hotkey: str = typer.Option(..., "--hotkey-member", help="Hotkey to add"),
+    role: str = typer.Option("viewer", "--role"),
+    registry: str = typer.Option("", "--registry", "-r"),
+    hotkey: str = typer.Option("", "--hotkey", "-k"),
+):
+    """Add a member to an organization (requires ADMIN)."""
+    client = _client(registry, hotkey)
+    result = client.add_member(slug, hotkey=member_hotkey, role=role)
+    console.print(f"[green]✓[/] Added {member_hotkey} as {result.get('role', role)}")
+
+
+@org_app.command(name="remove-member")
+def org_remove_member(
+    slug: str = typer.Argument(..., help="Organization slug"),
+    member_hotkey: str = typer.Option(..., "--hotkey-member", help="Hotkey to remove"),
+    registry: str = typer.Option("", "--registry", "-r"),
+    hotkey: str = typer.Option("", "--hotkey", "-k"),
+):
+    """Remove a member from an organization (requires ADMIN)."""
+    client = _client(registry, hotkey)
+    client.remove_member(slug, member_hotkey)
+    console.print(f"[green]✓[/] Removed {member_hotkey} from {slug}")
+
+
+# ── API Keys ────────────────────────────────────────────────
+
+apikey_app = typer.Typer(help="API key management")
+app.add_typer(apikey_app, name="api-key")
+
+
+@apikey_app.command(name="create")
+def apikey_create(
+    label: str = typer.Option("", "--label", "-l"),
+    daily_limit: int = typer.Option(1000, "--limit"),
+    registry: str = typer.Option("", "--registry", "-r"),
+    hotkey: str = typer.Option("", "--hotkey", "-k"),
+):
+    """Create a new API key."""
+    client = _client(registry, hotkey)
+    result = client.create_api_key(label=label, daily_limit=daily_limit)
+    console.print(f"[green]✓[/] API key created")
+    console.print(f"  Key:   [bold]{result.get('key', '')}[/]")
+    console.print(f"  Label: {result.get('label', '')}")
+    console.print(f"  Limit: {result.get('daily_limit', 1000)}/day")
+    console.print("[yellow]Save this key — it will not be shown again.[/]")
+
+
+@apikey_app.command(name="list")
+def apikey_list(
+    registry: str = typer.Option("", "--registry", "-r"),
+    hotkey: str = typer.Option("", "--hotkey", "-k"),
+    output_json: bool = typer.Option(False, "--json"),
+):
+    """List your API keys."""
+    client = _client(registry, hotkey)
+    result = client.list_api_keys()
+    if output_json:
+        _json_output(result)
+        return
+    table = Table(title="API Keys")
+    table.add_column("ID", justify="right")
+    table.add_column("Label")
+    table.add_column("Daily Limit", justify="right")
+    table.add_column("Used Today", justify="right")
+    table.add_column("Created")
+    for k in result:
+        table.add_row(
+            str(k.get("id", "")),
+            k.get("label", ""),
+            str(k.get("daily_limit", "")),
+            str(k.get("requests_today", 0)),
+            k.get("created_at", "")[:10],
+        )
+    console.print(table)
+
+
+@apikey_app.command(name="revoke")
+def apikey_revoke(
+    key_id: int = typer.Argument(..., help="API key ID to revoke"),
+    registry: str = typer.Option("", "--registry", "-r"),
+    hotkey: str = typer.Option("", "--hotkey", "-k"),
+):
+    """Revoke an API key."""
+    client = _client(registry, hotkey)
+    client.revoke_api_key(key_id)
+    console.print(f"[green]✓[/] API key {key_id} revoked")
+
+
+# ── Audit Logs ──────────────────────────────────────────────
+
+audit_app = typer.Typer(help="Audit log queries")
+app.add_typer(audit_app, name="audit")
+
+
+@audit_app.command(name="list")
+def audit_list(
+    action: str | None = typer.Option(None, "--action"),
+    resource_type: str | None = typer.Option(None, "--resource-type"),
+    actor: str | None = typer.Option(None, "--actor"),
+    page: int = typer.Option(1, "--page"),
+    registry: str = typer.Option("", "--registry", "-r"),
+    output_json: bool = typer.Option(False, "--json"),
+):
+    """List audit log entries."""
+    from sdk.client import ModelionnClient
+    c = ModelionnClient(registry_url=registry or _default_registry())
+    params: dict = {"page": page}
+    if action:
+        params["action"] = action
+    if resource_type:
+        params["resource_type"] = resource_type
+    if actor:
+        params["actor_hotkey"] = actor
+    resp = c._request_with_retry("GET", f"{c._url}/audit", params=params)
+    data = resp.json()
+    if output_json:
+        _json_output(data)
+        return
+    table = Table(title="Audit Logs")
+    table.add_column("ID", justify="right")
+    table.add_column("Action")
+    table.add_column("Actor")
+    table.add_column("Resource")
+    table.add_column("Time")
+    for entry in data.get("items", []):
+        table.add_row(
+            str(entry.get("id", "")),
+            entry.get("action", ""),
+            (entry.get("actor_hotkey", "")[:12] + "…") if entry.get("actor_hotkey") else "",
+            f"{entry.get('resource_type', '')}:{entry.get('resource_id', '')}",
+            entry.get("created_at", "")[:19],
+        )
+    console.print(table)
+
+
+if __name__ == "__main__":
+    app()
