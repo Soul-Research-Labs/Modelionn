@@ -89,6 +89,14 @@ async def _aggregate_sweep(task) -> dict:
                 job.error = f"Proving timed out after {int(elapsed)}s (limit: {max_proving_seconds}s)"
                 job.completed_at = datetime.now(timezone.utc)
                 timed_out += 1
+                # Fire webhook for timeout
+                try:
+                    from registry.tasks.webhook_delivery import fire_webhooks_for_job
+                    await fire_webhooks_for_job(job.id, "proof.timeout", {
+                        "job_id": job.id, "task_id": job.task_id, "error": job.error,
+                    })
+                except Exception:
+                    pass
                 continue
 
             # Count partition statuses
@@ -118,6 +126,13 @@ async def _aggregate_sweep(task) -> dict:
                     job.status = ProofJobStatus.FAILED
                     job.error = f"Only {completed}/{job.num_partitions} partitions completed, rest failed"
                     job.completed_at = datetime.now(timezone.utc)
+                    try:
+                        from registry.tasks.webhook_delivery import fire_webhooks_for_job
+                        await fire_webhooks_for_job(job.id, "proof.failed", {
+                            "job_id": job.id, "task_id": job.task_id, "error": job.error,
+                        })
+                    except Exception:
+                        pass
                 continue
 
             # All partitions completed — aggregate
@@ -329,3 +344,17 @@ async def _aggregate_job(db, job) -> None:
         "Job %d aggregated: proof_id=%d hash=%s verified=%s time=%dms fragments=%d",
         job.id, proof.id, proof_hash[:16], verified, actual_ms, len(fragments),
     )
+
+    # Fire webhooks for job completion
+    try:
+        from registry.tasks.webhook_delivery import fire_webhooks_for_job
+        await fire_webhooks_for_job(job.id, "proof.completed", {
+            "job_id": job.id,
+            "task_id": job.task_id,
+            "proof_id": proof.id,
+            "proof_hash": proof_hash,
+            "verified": verified,
+            "generation_time_ms": actual_ms,
+        })
+    except Exception as exc:
+        logger.debug("Webhook delivery queueing failed (non-critical): %s", exc)
