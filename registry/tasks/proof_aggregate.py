@@ -39,6 +39,17 @@ def _get_max_proving_seconds() -> int:
 _MAX_PROVING_SECONDS: int = _get_max_proving_seconds()
 
 
+def _reset_timeout_partitions(partitions: list) -> int:
+    reset_count = 0
+    for part in partitions:
+        part.status = "pending"
+        part.assigned_prover = None
+        part.assigned_at = None
+        part.error = "Reset after proving timeout"
+        reset_count += 1
+    return reset_count
+
+
 @app.task(
     bind=True,
     name="registry.tasks.proof_aggregate.aggregate_completed_jobs",
@@ -80,7 +91,6 @@ async def _aggregate_sweep(task) -> dict:
             max_proving_seconds = _get_max_proving_seconds()
             elapsed = (datetime.now(timezone.utc) - (job.started_at or job.created_at)).total_seconds()
             if elapsed > max_proving_seconds:
-                reset_count = 0
                 reset_candidates = (
                     await db.execute(
                         select(CircuitPartitionRow)
@@ -91,12 +101,7 @@ async def _aggregate_sweep(task) -> dict:
                         .with_for_update()
                     )
                 ).scalars().all()
-                for part in reset_candidates:
-                    part.status = "pending"
-                    part.assigned_prover = None
-                    part.assigned_at = None
-                    part.error = "Reset after proving timeout"
-                    reset_count += 1
+                reset_count = _reset_timeout_partitions(reset_candidates)
 
                 job.status = ProofJobStatus.TIMEOUT
                 job.error = f"Proving timed out after {int(elapsed)}s (limit: {max_proving_seconds}s)"

@@ -17,6 +17,32 @@ from registry.tasks.celery_app import app
 logger = logging.getLogger(__name__)
 
 
+def _build_cumulative_weights(scores: list[float]) -> list[float]:
+    normalized = [max(float(s), 0.0) for s in scores]
+    total = sum(normalized)
+    if not normalized:
+        return []
+    if total <= 0:
+        return [float(i + 1) / float(len(normalized)) for i in range(len(normalized))]
+
+    running = 0.0
+    cumulative: list[float] = []
+    for score in normalized:
+        running += score / total
+        cumulative.append(running)
+    return cumulative
+
+
+def _pick_weighted_index(index: int, cumulative_weights: list[float]) -> int:
+    if not cumulative_weights:
+        return 0
+    cursor = ((index * 2654435761) % 10_000) / 10_000.0
+    for pos, boundary in enumerate(cumulative_weights):
+        if cursor <= boundary:
+            return pos
+    return len(cumulative_weights) - 1
+
+
 @app.task(bind=True, name="registry.tasks.proof_dispatch.dispatch_proof_job", max_retries=2, soft_time_limit=300, time_limit=360)
 def dispatch_proof_job(self, job_id: int) -> dict:
     """Main proof dispatch task — partitions circuit and routes to provers.
@@ -132,25 +158,12 @@ async def _dispatch_async(task, job_id: int) -> dict:
             )).scalars().all()
 
             # Weighted selection by benchmark score to avoid overloading slower provers.
-            total_score = sum(max(float(p.benchmark_score or 0.0), 0.0) for p in provers)
-            if total_score <= 0:
-                cumulative_weights = [float(i + 1) / float(len(provers)) for i in range(len(provers))]
-            else:
-                running = 0.0
-                cumulative_weights = []
-                for p in provers:
-                    running += max(float(p.benchmark_score or 0.0), 0.0) / total_score
-                    cumulative_weights.append(running)
-
-            def _pick_weighted(index: int):
-                cursor = ((index * 2654435761) % 10_000) / 10_000.0
-                for pos, boundary in enumerate(cumulative_weights):
-                    if cursor <= boundary:
-                        return provers[pos]
-                return provers[-1]
+            cumulative_weights = _build_cumulative_weights([
+                float(p.benchmark_score or 0.0) for p in provers
+            ])
 
             for i, partition in enumerate(partitions):
-                prover = _pick_weighted(i)
+                prover = provers[_pick_weighted_index(i, cumulative_weights)]
                 partition.assigned_prover = prover.hotkey
                 partition.status = "assigned"
                 partition.assigned_at = datetime.now(timezone.utc)
