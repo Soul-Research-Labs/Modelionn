@@ -11,6 +11,7 @@ import hashlib
 import hmac
 import json
 import logging
+from threading import Lock
 import time
 
 import httpx
@@ -21,11 +22,46 @@ logger = logging.getLogger(__name__)
 
 _DELIVERY_TIMEOUT = 10  # seconds per delivery attempt
 _MAX_RETRIES = 3
+_CIRCUIT_FAILURE_THRESHOLD = 5
+_CIRCUIT_OPEN_SECONDS = 300
+
+# In-process circuit breaker fallback (worker-local).
+_cb_lock = Lock()
+_cb_failures: dict[int, int] = {}
+_cb_open_until: dict[int, float] = {}
 
 
 def _sign_payload(payload_bytes: bytes, secret: str) -> str:
     """Create HMAC-SHA256 signature for webhook payload."""
     return hmac.new(secret.encode(), payload_bytes, hashlib.sha256).hexdigest()
+
+
+def _is_circuit_open(webhook_id: int, now: float | None = None) -> bool:
+    now_ts = now if now is not None else time.time()
+    with _cb_lock:
+        until = _cb_open_until.get(webhook_id, 0.0)
+        if until <= now_ts:
+            _cb_open_until.pop(webhook_id, None)
+            return False
+        return True
+
+
+def _record_delivery_failure(webhook_id: int) -> bool:
+    """Record failed delivery. Returns True if breaker transitions to open."""
+    now_ts = time.time()
+    with _cb_lock:
+        failures = _cb_failures.get(webhook_id, 0) + 1
+        _cb_failures[webhook_id] = failures
+        if failures >= _CIRCUIT_FAILURE_THRESHOLD:
+            _cb_open_until[webhook_id] = now_ts + _CIRCUIT_OPEN_SECONDS
+            return True
+        return False
+
+
+def _record_delivery_success(webhook_id: int) -> None:
+    with _cb_lock:
+        _cb_failures.pop(webhook_id, None)
+        _cb_open_until.pop(webhook_id, None)
 
 
 @app.task(
@@ -71,6 +107,14 @@ async def _deliver(task, webhook_id: int, event: str, payload: dict) -> dict:
             logger.warning("Webhook %d not found or inactive — skipping delivery", webhook_id)
             return {"status": "skipped", "reason": "not_found_or_inactive"}
 
+        if _is_circuit_open(webhook_id):
+            logger.warning(
+                "Webhook %d circuit is open; skipping delivery for event=%s",
+                webhook_id,
+                event,
+            )
+            return {"status": "skipped", "reason": "circuit_open"}
+
         envelope = {
             "event": event,
             "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -93,14 +137,25 @@ async def _deliver(task, webhook_id: int, event: str, payload: dict) -> dict:
                 )
                 resp.raise_for_status()
         except (httpx.HTTPStatusError, httpx.HTTPError, httpx.TimeoutException) as exc:
+            tripped = _record_delivery_failure(webhook_id)
             logger.warning(
                 "Webhook delivery failed for %d (attempt %d/%d): %s",
                 webhook_id, (task.request.retries or 0) + 1, _MAX_RETRIES, exc,
             )
+            if tripped:
+                row.active = False
+                await db.commit()
+                logger.error(
+                    "Webhook %d disabled after %d consecutive failures",
+                    webhook_id,
+                    _CIRCUIT_FAILURE_THRESHOLD,
+                )
+                return {"status": "disabled", "reason": "circuit_opened"}
             raise
 
         # Update last_triggered_at
         row.last_triggered_at = datetime.now(timezone.utc)
+        _record_delivery_success(webhook_id)
         await db.commit()
 
         logger.info("Webhook %d delivered: event=%s status=%d", webhook_id, event, resp.status_code)
