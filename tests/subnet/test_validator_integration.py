@@ -74,6 +74,9 @@ def validator(mock_config, monkeypatch):
     v._commits = {}
     v._COMMIT_EXPIRY_S = 600
 
+    from subnet.reward.anti_sybil import ProofHashDeduplicator
+    v._deduplicator = ProofHashDeduplicator()
+
     v._checkpoint = MagicMock()
     return v
 
