@@ -27,7 +27,17 @@ class StakeGate:
 
 
 class RateLimiter:
-    """Limit how many proof requests a hotkey can submit per epoch."""
+    """Limit how many proof requests a hotkey can submit per time window.
+
+    Note: This uses wall-clock time (epoch_seconds), NOT the neuron's
+    epoch_length (which counts validation steps). The two are independent:
+
+    - epoch_seconds (default 3600): sliding window in real seconds
+    - neuron.epoch_length (default 100): number of validation steps per epoch
+
+    At ~12s per step, 100 steps ≈ 20 minutes. The rate limiter's 1-hour
+    window is intentionally broader to smooth out burst traffic.
+    """
 
     def __init__(self, max_per_epoch: int = 50, epoch_seconds: int = 3600) -> None:
         self.max_per_epoch = max_per_epoch
