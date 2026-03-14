@@ -286,6 +286,7 @@ async def get_job_partitions(
 _CANCELLABLE_STATUSES = {
     ProofJobStatus.QUEUED.value,
     ProofJobStatus.DISPATCHED.value,
+    ProofJobStatus.PROVING.value,
 }
 
 
@@ -295,7 +296,7 @@ async def cancel_proof_job(
     db: AsyncSession = Depends(get_db),
     caller: str = Depends(verify_publisher),
 ) -> dict:
-    """Cancel a proof job. Only the requester can cancel, and only if queued/dispatched."""
+    """Cancel a proof job. Only the requester can cancel, and only if queued/dispatched/proving."""
     row = (await db.execute(
         select(ProofJobRow).where(ProofJobRow.task_id == task_id)
     )).scalar_one_or_none()
@@ -307,7 +308,7 @@ async def cancel_proof_job(
     status_val = row.status if isinstance(row.status, str) else row.status.value
     if status_val not in _CANCELLABLE_STATUSES:
         raise HTTPException(
-            409, f"Cannot cancel job in '{status_val}' state — only queued or dispatched jobs can be cancelled"
+            409, f"Cannot cancel job in '{status_val}' state — only queued, dispatched, or proving jobs can be cancelled"
         )
 
     row.status = ProofJobStatus.CANCELLED

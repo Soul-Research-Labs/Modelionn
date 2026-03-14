@@ -77,6 +77,10 @@ async def _aggregate_sweep(task) -> dict:
         timed_out = 0
 
         for job in jobs:
+            # Skip jobs that were cancelled while proving
+            if job.status == ProofJobStatus.CANCELLED:
+                continue
+
             # Check for timeout
             max_proving_seconds = _get_max_proving_seconds()
             elapsed = (datetime.now(timezone.utc) - (job.started_at or job.created_at)).total_seconds()
