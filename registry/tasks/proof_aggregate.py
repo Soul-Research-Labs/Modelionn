@@ -80,10 +80,34 @@ async def _aggregate_sweep(task) -> dict:
             max_proving_seconds = _get_max_proving_seconds()
             elapsed = (datetime.now(timezone.utc) - (job.started_at or job.created_at)).total_seconds()
             if elapsed > max_proving_seconds:
+                reset_count = 0
+                reset_candidates = (
+                    await db.execute(
+                        select(CircuitPartitionRow)
+                        .where(
+                            CircuitPartitionRow.job_id == job.id,
+                            CircuitPartitionRow.status.in_(["assigned", "proving"]),
+                        )
+                        .with_for_update()
+                    )
+                ).scalars().all()
+                for part in reset_candidates:
+                    part.status = "pending"
+                    part.assigned_prover = None
+                    part.assigned_at = None
+                    part.error = "Reset after proving timeout"
+                    reset_count += 1
+
                 job.status = ProofJobStatus.TIMEOUT
                 job.error = f"Proving timed out after {int(elapsed)}s (limit: {max_proving_seconds}s)"
                 job.completed_at = datetime.now(timezone.utc)
                 timed_out += 1
+                logger.warning(
+                    "Job %d timed out after %.0fs; reset %d partition(s) to pending",
+                    job.id,
+                    elapsed,
+                    reset_count,
+                )
                 # Fire webhook for timeout
                 try:
                     from registry.tasks.webhook_delivery import fire_webhooks_for_job
