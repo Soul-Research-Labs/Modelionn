@@ -19,6 +19,48 @@ All notable changes to Modelionn are documented in this file.
 - **Resource limits** added for registry, worker, and beat services
 - **Secret validation**: Entrypoint now validates `MODELIONN_SECRET_KEY` in prod
 - **Cargo.lock required**: Dockerfile uses strict COPY for reproducible Rust builds
+- **IDOR fixed**: `list_proof_jobs` no longer accepts `?requester=` param to view other users' jobs
+- **Scoped queries**: `list_proofs` now filters by caller's hotkey instead of returning all proofs
+- **Soft-delete filters**: Circuit queries exclude soft-deleted records (`deleted_at IS NULL`)
+- **CSP nonce-based styles**: Replaced `style-src 'unsafe-inline'` with nonce-based injection
+- **FLOWER_PASSWORD required**: Production entrypoint validates Flower password at startup
+
+### Added
+
+- **Commit-reveal anti-frontrunning** — Validators commit proof hashes before revealing to prevent score manipulation
+- **ConsensusEngine** — Multi-validator binary proof verification with stake-weighted voting (66% threshold, min quorum 2, max 5 validators)
+- **Validator reliability tracking** — 60% lifetime + 40% recent (50-vote window) with slashing for >20% divergence
+- **Job cancellation** — `DELETE /proofs/jobs/{task_id}` cancels QUEUED/DISPATCHED jobs
+- **Job deduplication** — Prevents duplicate proof jobs for the same (circuit_id, witness_cid, requester) combo
+- **Circuit race protection** — `FOR UPDATE` lock prevents concurrent name+version duplicates
+- **Webhook configuration** — CRUD API (`/webhooks`) + settings UI; HTTPS-only URLs, HMAC secrets, max 10 per user
+- **Miner load shedding** — Rejects proof requests when `_current_load >= 1.0`; 600s proof generation timeout
+- **SDK improvements** — Exponential backoff with jitter, `cancel_proof_job()`, 408 retry, auth headers on all requests
+- **CLI commands** — `cancel-proof`, `get-proof`, `list-proofs` added to CLI
+- **Alertmanager service** — Webhook-based alert routing with severity groups (critical/warning)
+- **Automated backups** — Daily PostgreSQL backup cron service at 02:00 UTC with 7-day retention
+- **Rate limit headers** — `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset` on every response
+- **Per-circuit job limit** — Max 50 concurrent proof jobs per circuit to prevent DoS
+- `asyncpg>=0.29` added to project dependencies (required for prod PostgreSQL)
+
+### Added (Documentation)
+
+- **SECURITY.md** — Comprehensive threat model, authentication flows, hardening guide
+- **docs/disaster-recovery.md** — RTO/RPO targets, failover procedures, recovery validation checklist
+- **docs/capacity-planning.md** — Resource sizing for small/medium/large deployments
+- **docs/tls-setup.md** — TLS/HTTPS setup with Nginx and Caddy, HSTS, OCSP stapling
+- **docs/monitoring-setup.md** — Prometheus, Grafana, Alertmanager configuration guide
+- **.env.prod.example** — Aligned with all config variables (database, IPFS, Redis, Celery, Bittensor, Sentry, backup)
+
+### Added (Tests)
+
+- 39 middleware + reward + anti-Sybil tests
+- 15 validator integration tests (commit-reveal, consensus verification, scoring)
+- 8 consensus e2e tests (multi-round, slashing, stake-weighted overrule, partition isolation)
+- 28 miner neuron integration tests (load shedding, CID validation, blacklist, priority, verification, state)
+- 32 SDK integration tests (proof lifecycle, retry, auth, orgs, API keys, connection management)
+- Locust load tests with 3 user profiles (ReadOnly, ProofRequester, Admin)
+- **Total: 361 tests passing**
 
 ### Fixed
 
@@ -30,12 +72,8 @@ All notable changes to Modelionn are documented in this file.
   `supported_proof_types_csv` across all provers
 - Remove duplicate `refresh_prover_rankings` Celery task (was scheduled at
   both 6h and 30min intervals)
-
-### Added
-
-- `asyncpg>=0.29` added to project dependencies (required for prod PostgreSQL)
-- 39 new tests: middleware (CSRF, request-ID, rate limit, security headers,
-  tenant), reward scoring, and anti-Sybil mechanisms
+- Fix `test_organizations.py::TestMembership::test_list_members` — missing auth headers
+- Fix `test_proof_aggregate.py` (3 tests) — constant/timeout assertion mismatches
 
 ### Changed
 
@@ -89,11 +127,11 @@ All notable changes to Modelionn are documented in this file.
 - **Registry**: Immutable audit trail with CSV export
 - **Registry**: Prometheus-compatible `/metrics` endpoint
 - **Registry**: IPFS storage with tenacity retry and content verification
-- **Database**: 10 SQLAlchemy ORM tables, 4 Alembic migrations
+- **Database**: 10 SQLAlchemy ORM tables, 10 Alembic migrations
 - **Tasks**: Celery proof dispatch pipeline, prover health monitoring, periodic maintenance
-- **Infra**: Docker Compose (9 services), GPU overlay, production overlay
-- **Infra**: Prometheus + Grafana monitoring
-- **Docs**: `DEPLOYMENT.md`, `ARCHITECTURE.md`, testnet deployment guide
+- **Infra**: Docker Compose (11 services), GPU overlay, production overlay
+- **Infra**: Prometheus + Grafana + Alertmanager monitoring
+- **Docs**: `DEPLOYMENT.md`, `ARCHITECTURE.md`, `SECURITY.md`, testnet, TLS, monitoring, DR, capacity planning
 
 ### Changed
 

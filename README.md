@@ -72,7 +72,7 @@ correct, and reliable proof generation with TAO.
 
 ### Platform
 
-- **Security hardening** — HSTS, CSP, X-Frame-Options, AES-256-GCM field encryption, request-ID tracing
+- **Security hardening** — HSTS, CSP (nonce-based), X-Frame-Options, AES-256-GCM field encryption, request-ID tracing
 - **Multi-tenancy & RBAC** — Organisations, memberships, role-based access (Viewer / Editor / Admin)
 - **Immutable audit trail** — Every mutation logged with actor, action, resource, and timestamp
 - **Redis-backed rate limiting** — Sliding-window algorithm with in-memory fallback
@@ -87,6 +87,13 @@ correct, and reliable proof generation with TAO.
 - **Fail-fast secret validation** — Runtime error on default secrets in production
 - **Non-root Docker** — Hardened Dockerfile with dedicated user and healthcheck
 - **Connection pooling** — Persistent `httpx.Client` in SDK with configurable pool limits
+- **Commit-reveal anti-frontrunning** — Prevents score frontrunning between validators
+- **Webhook configuration** — CRUD API + settings UI for event-driven integrations (HTTPS-enforced)
+- **Job cancellation** — Cancel QUEUED/DISPATCHED proof jobs via `DELETE /proofs/jobs/{task_id}`
+- **Job deduplication** — Prevents duplicate proof jobs for the same circuit + witness
+- **Miner load shedding** — Rejects requests when at capacity; 600s proof timeout
+- **Automated backups** — Daily PostgreSQL backups at 02:00 UTC with 7-day retention
+- **Alertmanager** — Prometheus alert routing to Slack, PagerDuty, or webhook receivers
 
 ### Web Dashboard
 
@@ -160,6 +167,7 @@ For production deployment, see [DEPLOYMENT.md](DEPLOYMENT.md).
 | GET      | `/proofs/jobs`                      | List proof jobs                   |
 | GET      | `/proofs/jobs/{task_id}`            | Get proof job status + partitions |
 | GET      | `/proofs/jobs/{task_id}/partitions` | Get partition details             |
+| DELETE   | `/proofs/jobs/{task_id}`            | Cancel a queued/dispatched job    |
 | GET      | `/proofs`                           | List completed proofs             |
 | POST     | `/proofs/{id}/verify`               | Verify a proof                    |
 | POST/GET | `/provers`                          | Register and list provers         |
@@ -167,7 +175,7 @@ For production deployment, see [DEPLOYMENT.md](DEPLOYMENT.md).
 | GET      | `/provers/{hotkey}/stats`           | Get prover statistics             |
 | POST     | `/provers/{hotkey}/ping`            | Report prover health/capabilities |
 
-### Organizations & RBAC
+### Organizations, RBAC & Webhooks
 
 | Method   | Path                   | Description               |
 | -------- | ---------------------- | ------------------------- |
@@ -175,6 +183,10 @@ For production deployment, see [DEPLOYMENT.md](DEPLOYMENT.md).
 | POST/GET | `/orgs/{slug}/members` | Membership management     |
 | GET      | `/audit`               | Query immutable audit log |
 | GET      | `/audit/export`        | Stream audit CSV          |
+| GET      | `/webhooks`            | List webhook configs      |
+| POST     | `/webhooks`            | Create webhook config     |
+| PUT      | `/webhooks/{id}`       | Update webhook config     |
+| DELETE   | `/webhooks/{id}`       | Delete webhook config     |
 
 ### API Keys
 
@@ -218,7 +230,9 @@ The subnet incentivises GPU miners to generate ZK proofs:
 
 **Anti-Sybil:** Stake gate (≥1.0 TAO), rate limiter (50 req/epoch), GPU benchmark gate, proof hash deduplication.
 
-**Consensus:** Binary valid/invalid votes, stake-weighted majority, 66% agreement threshold, min quorum of 2.
+**Consensus:** Binary valid/invalid votes, stake-weighted majority, 66% agreement threshold, min quorum of 2, max 5 validators per proof.
+
+**Commit-Reveal:** Anti-frontrunning protocol — validators commit proof hashes before revealing, preventing score manipulation.
 
 ## Middleware Stack
 
@@ -252,21 +266,37 @@ publishes the package via OIDC trusted publishing (no API token required).
 - **Prometheus** — `/metrics` endpoint exposes counters, gauges, and histograms
   (HTTP request rate, latency, in-flight, proofs generated, provers online).
 - **Grafana** — Import `grafana/dashboard.json` for a pre-built dashboard.
+- **Alertmanager** — 13 alert rules for provers, proofs, IPFS, API keys, nonce replays, Celery workers.
 - **Sentry** — Set `SENTRY_DSN` env var to enable error tracking and tracing.
 - **Audit Export** — `GET /audit/export` returns CSV for compliance/analysis.
+
+See [docs/monitoring-setup.md](docs/monitoring-setup.md) for detailed setup instructions.
 
 ## Load Testing
 
 ```bash
 pip install locust
-locust -f scripts/loadtest.py --host http://localhost:8000
-# Open http://localhost:8089
+locust -f tests/load/locustfile.py --host http://localhost:8000
+# Open http://localhost:8089 — 3 user profiles: ReadOnly, ProofRequester, Admin
 ```
+
+See [tests/load/README.md](tests/load/README.md) for headless mode and CI integration.
 
 ## Testnet Deployment
 
 See [docs/testnet-deployment.md](docs/testnet-deployment.md) for step-by-step
 instructions on wallet creation, registration, and running miner/validator neurons.
+
+## Operational Guides
+
+| Guide | Description |
+|-------|-------------|
+| [DEPLOYMENT.md](DEPLOYMENT.md) | Production deployment with Docker Compose |
+| [SECURITY.md](SECURITY.md) | Threat model, authentication flows, hardening |
+| [docs/tls-setup.md](docs/tls-setup.md) | TLS/HTTPS with Nginx or Caddy |
+| [docs/monitoring-setup.md](docs/monitoring-setup.md) | Prometheus, Grafana, Alertmanager setup |
+| [docs/disaster-recovery.md](docs/disaster-recovery.md) | RTO/RPO targets, failover procedures |
+| [docs/capacity-planning.md](docs/capacity-planning.md) | Resource sizing by workload tier |
 
 ## Development
 
@@ -286,17 +316,19 @@ make typecheck
 
 ## Docker Compose Services
 
-| Service    | Image            | Port      | Purpose                               |
-| ---------- | ---------------- | --------- | ------------------------------------- |
-| registry   | ./Dockerfile     | 8000      | FastAPI API server                    |
-| redis      | redis:7-alpine   | 6379      | Cache + Celery broker                 |
-| worker     | ./Dockerfile     | —         | Celery workers (proof dispatch queue) |
-| beat       | ./Dockerfile     | —         | Celery Beat periodic tasks            |
-| flower     | ./Dockerfile     | 5555      | Celery monitoring UI                  |
-| ipfs       | ipfs/kubo        | 5001/8080 | Circuit + proof storage               |
-| web        | ./web/Dockerfile | 3000      | Next.js ZK dashboard                  |
-| prometheus | prom/prometheus  | 9090      | Metrics collection                    |
-| grafana    | grafana/grafana  | 3001      | Monitoring dashboards                 |
+| Service      | Image              | Port      | Purpose                               |
+| ------------ | ------------------ | --------- | ------------------------------------- |
+| registry     | ./Dockerfile       | 8000      | FastAPI API server                    |
+| redis        | redis:7-alpine     | 6379      | Cache + Celery broker                 |
+| worker       | ./Dockerfile       | —         | Celery workers (proof dispatch queue) |
+| beat         | ./Dockerfile       | —         | Celery Beat periodic tasks            |
+| flower       | ./Dockerfile       | 5555      | Celery monitoring UI                  |
+| ipfs         | ipfs/kubo          | 5001/8080 | Circuit + proof storage               |
+| web          | ./web/Dockerfile   | 3000      | Next.js ZK dashboard                  |
+| prometheus   | prom/prometheus    | 9090      | Metrics collection                    |
+| grafana      | grafana/grafana    | 3001      | Monitoring dashboards                 |
+| alertmanager | prom/alertmanager  | 9093      | Alert routing (Slack/PagerDuty/email) |
+| backup       | postgres:16-alpine | —         | Daily pg_dump (prod only, 02:00 UTC)  |
 
 ```bash
 docker compose up -d
@@ -323,12 +355,12 @@ docker compose logs -f registry
 ├── sdk/                # Python client library (py.typed)
 ├── cli/                # Terminal interface (Typer + Rich)
 ├── web/                # Next.js 14 dashboard
-├── alembic/            # Database migrations (4 revisions)
-├── grafana/            # Grafana dashboard JSON
-├── docker/             # Neuron Dockerfiles (miner/validator) + entrypoint
-├── scripts/            # Registration, load testing, backup/restore
-├── docs/               # Testnet deployment guide
-├── tests/              # Tests across all layers
+├── alembic/            # Database migrations (10 revisions)
+├── grafana/            # Grafana dashboard JSON + provisioning
+├── docker/             # Neuron Dockerfiles, entrypoint, alertmanager config
+├── scripts/            # Registration, backup/restore
+├── docs/               # Operational guides (TLS, DR, capacity, monitoring, testnet)
+├── tests/              # 361 tests across all layers + Locust load tests
 ├── docker-compose.yml  # Development deployment (9 services)
 └── docker-compose.prod.yml  # Production deployment (with secrets)
 ```
