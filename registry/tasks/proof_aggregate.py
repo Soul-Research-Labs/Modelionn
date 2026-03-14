@@ -13,6 +13,7 @@ Runs periodically to sweep all jobs currently in PROVING status. For each:
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import logging
 import re
@@ -47,13 +48,7 @@ _MAX_PROVING_SECONDS: int = _get_max_proving_seconds()
 )
 def aggregate_completed_jobs(self) -> dict:
     """Periodic sweep: find PROVING jobs whose partitions are all done."""
-    import asyncio
-
-    loop = asyncio.new_event_loop()
-    try:
-        return loop.run_until_complete(_aggregate_sweep(self))
-    finally:
-        loop.close()
+    return asyncio.run(_aggregate_sweep(self))
 
 
 async def _aggregate_sweep(task) -> dict:

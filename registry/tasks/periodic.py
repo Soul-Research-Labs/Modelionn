@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from registry.tasks.celery_app import app
@@ -12,13 +13,7 @@ logger = logging.getLogger(__name__)
 @app.task(name="registry.tasks.periodic.reset_daily_api_key_counters", bind=True, time_limit=300, max_retries=3, default_retry_delay=60)
 def reset_daily_api_key_counters(self) -> dict:
     """Reset daily usage counters on all API keys (runs at midnight UTC)."""
-    import asyncio
-
-    loop = asyncio.new_event_loop()
-    try:
-        return loop.run_until_complete(_reset_counters_async())
-    finally:
-        loop.close()
+    return asyncio.run(_reset_counters_async())
 
 
 async def _reset_counters_async() -> dict:

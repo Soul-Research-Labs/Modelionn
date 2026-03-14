@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import datetime, timezone, timedelta
 
@@ -13,12 +14,7 @@ logger = logging.getLogger(__name__)
 @app.task(name="registry.tasks.prover_health.check_prover_health", bind=True, time_limit=120, max_retries=2, default_retry_delay=30)
 def check_prover_health(self) -> dict:
     """Mark provers as offline if they haven't pinged recently."""
-    import asyncio
-    loop = asyncio.new_event_loop()
-    try:
-        return loop.run_until_complete(_check_health_async())
-    finally:
-        loop.close()
+    return asyncio.run(_check_health_async())
 
 
 async def _check_health_async() -> dict:
@@ -92,12 +88,7 @@ async def _check_health_async() -> dict:
 @app.task(name="registry.tasks.prover_health.update_prover_rankings", bind=True, time_limit=300, max_retries=2, default_retry_delay=60)
 def update_prover_rankings(self) -> dict:
     """Recalculate prover reliability and ranking scores."""
-    import asyncio
-    loop = asyncio.new_event_loop()
-    try:
-        return loop.run_until_complete(_update_rankings_async())
-    finally:
-        loop.close()
+    return asyncio.run(_update_rankings_async())
 
 
 async def _update_rankings_async() -> dict:
@@ -127,12 +118,7 @@ async def _update_rankings_async() -> dict:
 @app.task(name="registry.tasks.prover_health.cleanup_stale_jobs", bind=True, time_limit=180, max_retries=2, default_retry_delay=30)
 def cleanup_stale_jobs(self) -> dict:
     """Timeout and fail proof jobs that have been running too long."""
-    import asyncio
-    loop = asyncio.new_event_loop()
-    try:
-        return loop.run_until_complete(_cleanup_stale_async())
-    finally:
-        loop.close()
+    return asyncio.run(_cleanup_stale_async())
 
 
 async def _cleanup_stale_async() -> dict:

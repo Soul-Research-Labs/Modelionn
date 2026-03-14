@@ -5,6 +5,7 @@ Lifecycle: QUEUED → PARTITIONING → DISPATCHED → PROVING → AGGREGATING �
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import logging
@@ -23,20 +24,15 @@ def dispatch_proof_job(self, job_id: int) -> dict:
     This runs synchronously in a Celery worker. It updates the DB
     at each stage of the pipeline.
     """
-    import asyncio
-    loop = asyncio.new_event_loop()
     try:
-        return loop.run_until_complete(_dispatch_async(self, job_id))
+        return asyncio.run(_dispatch_async(self, job_id))
     except Exception as exc:
         # Handle soft time limit exceeded — mark job as failed
-        loop2 = asyncio.new_event_loop()
         try:
-            loop2.run_until_complete(_timeout_job(job_id, str(exc)))
-        finally:
-            loop2.close()
+            asyncio.run(_timeout_job(job_id, str(exc)))
+        except Exception as timeout_exc:
+            logger.error("Failed to mark proof job %d as timed out: %s", job_id, timeout_exc)
         raise
-    finally:
-        loop.close()
 
 
 async def _timeout_job(job_id: int, error: str) -> None:
@@ -181,12 +177,7 @@ async def _fail_job(db, job, error: str) -> None:
 @app.task(name="registry.tasks.proof_dispatch.complete_proof_job")
 def complete_proof_job(job_id: int, proof_data_cid: str, proof_hash: str) -> dict:
     """Called when all partitions are complete — creates the final proof record."""
-    import asyncio
-    loop = asyncio.new_event_loop()
-    try:
-        return loop.run_until_complete(_complete_async(job_id, proof_data_cid, proof_hash))
-    finally:
-        loop.close()
+    return asyncio.run(_complete_async(job_id, proof_data_cid, proof_hash))
 
 
 async def _complete_async(job_id: int, proof_data_cid: str, proof_hash: str) -> dict:

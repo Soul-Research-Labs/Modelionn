@@ -6,6 +6,7 @@ Uses HMAC-SHA256 signing so recipients can verify payload authenticity.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import hmac
 import json
@@ -47,13 +48,7 @@ def deliver_webhook(self, webhook_id: int, event: str, payload: dict) -> dict:
     Returns:
         Delivery result dict with status and response code.
     """
-    import asyncio
-
-    loop = asyncio.new_event_loop()
-    try:
-        return loop.run_until_complete(_deliver(self, webhook_id, event, payload))
-    finally:
-        loop.close()
+    return asyncio.run(_deliver(self, webhook_id, event, payload))
 
 
 async def _deliver(task, webhook_id: int, event: str, payload: dict) -> dict:
