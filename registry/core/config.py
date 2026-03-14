@@ -88,11 +88,9 @@ if settings.secret_key == _DEFAULT_SECRET:
         "Set MODELIONN_SECRET_KEY to a strong random secret before deploying."
     )
 
-# Warn about insecure auth configuration in non-debug mode
+# Enforce signature verification in non-debug mode
 if not settings.debug and not settings.require_signature_verification:
-    import logging as _logging2
-    _logging2.getLogger(__name__).warning(
-        "MODELIONN_REQUIRE_SIGNATURE_VERIFICATION is False in production mode. "
-        "Signature verification is enforced regardless (fail-closed), but set this "
-        "to True explicitly for clarity."
+    raise RuntimeError(
+        "MODELIONN_REQUIRE_SIGNATURE_VERIFICATION must be True in production mode "
+        "(debug=False). Set MODELIONN_REQUIRE_SIGNATURE_VERIFICATION=true before deploying."
     )

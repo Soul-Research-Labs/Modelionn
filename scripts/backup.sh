@@ -45,5 +45,14 @@ echo "  Pruning backups older than 7 days..."
 find "$BACKUP_DIR" -name "pg_*.dump" -mtime +7 -delete 2>/dev/null || true
 find "$BACKUP_DIR" -name "sqlite_*.db" -mtime +7 -delete 2>/dev/null || true
 find "$BACKUP_DIR" -name "redis_*.rdb" -mtime +7 -delete 2>/dev/null || true
+find "$BACKUP_DIR" -name "*.sha256" -mtime +7 -delete 2>/dev/null || true
+
+# --- Generate checksums for all new backup files ---
+echo "  Generating checksums..."
+for f in "$BACKUP_DIR"/*_"${TIMESTAMP}".*; do
+  [ -f "$f" ] || continue
+  shasum -a 256 "$f" > "${f}.sha256"
+  echo "  ✓ Checksum → ${f}.sha256"
+done
 
 echo "==> Backup complete."

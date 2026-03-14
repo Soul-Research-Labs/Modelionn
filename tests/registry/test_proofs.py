@@ -130,12 +130,12 @@ class TestGetProofJob:
             headers=_auth(),
         )
         task_id = create.json()["task_id"]
-        resp = await client.get(f"/proofs/jobs/{task_id}")
+        resp = await client.get(f"/proofs/jobs/{task_id}", headers=_auth())
         assert resp.status_code == 200
         assert resp.json()["task_id"] == task_id
 
     async def test_get_job_not_found(self, client: AsyncClient):
-        resp = await client.get("/proofs/jobs/nonexistent")
+        resp = await client.get("/proofs/jobs/nonexistent", headers=_auth())
         assert resp.status_code == 404
 
 
@@ -143,7 +143,7 @@ class TestGetProofJob:
 
 class TestListProofJobs:
     async def test_list_empty(self, client: AsyncClient):
-        resp = await client.get("/proofs/jobs")
+        resp = await client.get("/proofs/jobs", headers=_auth())
         assert resp.status_code == 200
         data = resp.json()
         assert data["items"] == []
@@ -162,7 +162,7 @@ class TestListProofJobs:
                 json=_proof_request(circuit["id"], witness_cid=witness_cids[i]),
                 headers=_auth(),
             )
-        resp = await client.get("/proofs/jobs")
+        resp = await client.get("/proofs/jobs", headers=_auth())
         data = resp.json()
         assert data["total"] == 3
         assert len(data["items"]) == 3
@@ -180,7 +180,7 @@ class TestListProofJobs:
             json=_proof_request(circuit["id"], witness_cid="QmRf22bZar3WKmojipms22PkXH1MZGmvsqzQtuSvQE3uhm"),
             headers=_auth(),
         )
-        resp = await client.get(f"/proofs/jobs?requester={alice}")
+        resp = await client.get(f"/proofs/jobs?requester={alice}", headers=_auth(alice))
         data = resp.json()
         assert data["total"] == 1
         assert data["items"][0]["requester_hotkey"] == alice
@@ -200,7 +200,7 @@ class TestListProofJobs:
                 json=_proof_request(circuit["id"], witness_cid=witness_page_cids[i]),
                 headers=_auth(),
             )
-        resp = await client.get("/proofs/jobs?page=1&page_size=2")
+        resp = await client.get("/proofs/jobs?page=1&page_size=2", headers=_auth())
         data = resp.json()
         assert data["total"] == 5
         assert len(data["items"]) == 2
@@ -221,7 +221,7 @@ class TestListProofs:
 
 class TestGetProof:
     async def test_get_proof_not_found(self, client: AsyncClient):
-        resp = await client.get("/proofs/999")
+        resp = await client.get("/proofs/999", headers=_auth())
         assert resp.status_code == 404
 
 
@@ -248,11 +248,11 @@ class TestJobPartitions:
             headers=_auth(),
         )
         task_id = create.json()["task_id"]
-        resp = await client.get(f"/proofs/jobs/{task_id}/partitions")
+        resp = await client.get(f"/proofs/jobs/{task_id}/partitions", headers=_auth())
         assert resp.status_code == 200
         # No partitions created by API alone — dispatched by Celery
         assert isinstance(resp.json(), list)
 
     async def test_get_partitions_job_not_found(self, client: AsyncClient):
-        resp = await client.get("/proofs/jobs/nonexistent/partitions")
+        resp = await client.get("/proofs/jobs/nonexistent/partitions", headers=_auth())
         assert resp.status_code == 404

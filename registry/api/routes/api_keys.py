@@ -6,14 +6,15 @@ import hashlib
 import secrets
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from registry.core.deps import get_db
 from registry.core.security import verify_publisher
-from registry.models.database import APIKeyRow
+from registry.models.audit import log_audit
+from registry.models.database import APIKeyRow, AuditAction
 
 router = APIRouter()
 
@@ -45,10 +46,12 @@ class APIKeyCreatedResponse(APIKeyResponse):
 @router.post("", status_code=status.HTTP_201_CREATED, response_model=APIKeyCreatedResponse)
 async def create_api_key(
     body: APIKeyCreate,
+    response: Response,
     db: AsyncSession = Depends(get_db),
     publisher: str = Depends(verify_publisher),
 ) -> APIKeyCreatedResponse:
     """Generate a new API key for the authenticated publisher."""
+    response.headers["Cache-Control"] = "no-store"
     raw_key = f"mnn_{secrets.token_urlsafe(32)}"
     key_hash = hashlib.sha256(raw_key.encode()).hexdigest()
 
@@ -64,8 +67,17 @@ async def create_api_key(
         expires_at=expires_at,
     )
     db.add(row)
-    await db.commit()
+    await db.flush()
     await db.refresh(row)
+    await log_audit(
+        db,
+        action=AuditAction.API_KEY_CREATED,
+        resource_type="api_key",
+        resource_id=str(row.id),
+        actor_hotkey=publisher,
+        new_value={"label": body.label, "daily_limit": body.daily_limit},
+    )
+    await db.commit()
 
     return APIKeyCreatedResponse(
         id=row.id,
@@ -124,5 +136,13 @@ async def revoke_api_key(
     row = result.scalar_one_or_none()
     if not row:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "API key not found")
+    await log_audit(
+        db,
+        action=AuditAction.API_KEY_REVOKED,
+        resource_type="api_key",
+        resource_id=str(key_id),
+        actor_hotkey=publisher,
+        old_value={"label": row.label},
+    )
     await db.execute(delete(APIKeyRow).where(APIKeyRow.id == key_id, APIKeyRow.hotkey == publisher))
     await db.commit()

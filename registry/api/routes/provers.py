@@ -13,7 +13,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from registry.core.config import settings
 from registry.core.deps import get_db
 from registry.core.security import verify_publisher
-from registry.models.database import ProverCapabilityRow, GpuBackendEnum
+from registry.models.audit import log_audit
+from registry.models.database import ProverCapabilityRow, GpuBackendEnum, AuditAction
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -168,8 +169,17 @@ async def register_prover(
         last_ping_at=datetime.now(timezone.utc),
     )
     db.add(row)
-    await db.commit()
+    await db.flush()
     await db.refresh(row)
+    await log_audit(
+        db,
+        action=AuditAction.PROVER_REGISTERED,
+        resource_type="prover",
+        resource_id=hotkey,
+        actor_hotkey=hotkey,
+        new_value={"gpu_name": body.gpu_name, "gpu_backend": body.gpu_backend, "gpu_count": body.gpu_count},
+    )
+    await db.commit()
     logger.info("Prover registered: %s gpu=%s", hotkey, body.gpu_name)
     return _prover_to_response(row)
 

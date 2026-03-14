@@ -15,11 +15,14 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import re
 from datetime import datetime, timezone
 
 from registry.tasks.celery_app import app
 
 logger = logging.getLogger(__name__)
+
+_CID_RE = re.compile(r'^Qm[1-9A-HJ-NP-Za-km-z]{44}$|^b[a-z2-7]{58}$')
 
 # Maximum wall-clock seconds a job may spend in PROVING before it is timed out.
 # Configurable per proof system via settings.prover_timeout_s.
@@ -159,6 +162,11 @@ async def _aggregate_job(db, job) -> None:
 
     if not fragment_cids:
         raise ValueError("No proof fragment CIDs found on completed partitions")
+
+    # Validate CID format before downloading
+    for cid in fragment_cids:
+        if not _CID_RE.match(cid):
+            raise ValueError(f"Invalid IPFS CID format in partition fragment: {cid[:40]}")
 
     # Download and concatenate fragments from IPFS
     from registry.storage.ipfs import IPFSStorage

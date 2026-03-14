@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import logging
 import os
 import time
@@ -93,14 +92,11 @@ class ModelionnClient:
         if self._sign_fn:
             sig = self._sign_fn(message)
         else:
-            env = os.environ.get("MODELIONN_ENV", "development")
-            if env == "production":
-                raise ModelionnError(
-                    "sign_fn is required in production. "
-                    "Provide a real signer or set MODELIONN_ENV=development."
-                )
-            # Dev fallback: sha256 of message (not secure — use real signer in prod)
-            sig = hashlib.sha256(message.encode()).hexdigest()
+            raise ModelionnError(
+                "sign_fn is required for authenticated requests. "
+                "Provide a signing function (e.g. bittensor Keypair.sign) when "
+                "constructing ModelionnClient."
+            )
         return {
             "x-hotkey": self._hotkey,
             "x-nonce": nonce,

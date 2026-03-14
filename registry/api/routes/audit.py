@@ -39,6 +39,18 @@ class AuditLogList(BaseModel):
 
 router = APIRouter()
 
+# Characters that trigger formula execution in spreadsheet applications
+_CSV_DANGEROUS_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _sanitize_csv_cell(value: str | None) -> str | None:
+    """Prevent CSV formula injection by prefixing dangerous cells with a tab."""
+    if value is None:
+        return None
+    if value and value[0] in _CSV_DANGEROUS_PREFIXES:
+        return f"\t{value}"
+    return value
+
 
 async def _caller_org_ids(db: AsyncSession, hotkey: str) -> list[int]:
     """Return org IDs the caller belongs to (any role)."""
@@ -63,10 +75,14 @@ async def list_audit_logs(
     # Scope to caller's orgs — only logs with a matching org_id (or NULL org_id
     # produced by the caller themselves) are visible.
     org_ids = await _caller_org_ids(db, publisher)
-    base = select(AuditLogRow).where(
-        AuditLogRow.org_id.in_(org_ids) if org_ids
-        else AuditLogRow.actor_hotkey == publisher
-    )
+    if org_ids:
+        base = select(AuditLogRow).where(AuditLogRow.org_id.in_(org_ids))
+    else:
+        # User not in any org: only see their own actions with no org context
+        base = select(AuditLogRow).where(
+            AuditLogRow.actor_hotkey == publisher,
+            AuditLogRow.org_id.is_(None),
+        )
     if action:
         base = base.where(AuditLogRow.action == action)
     if resource_type:
@@ -124,7 +140,10 @@ async def export_audit_csv(
     if org_ids:
         query = query.where(AuditLogRow.org_id.in_(org_ids))
     else:
-        query = query.where(AuditLogRow.actor_hotkey == publisher)
+        query = query.where(
+            AuditLogRow.actor_hotkey == publisher,
+            AuditLogRow.org_id.is_(None),
+        )
     if action:
         query = query.where(AuditLogRow.action == action)
     if resource_type:
@@ -151,7 +170,10 @@ async def export_audit_csv(
             writer = csv.writer(buf)
             writer.writerow([
                 r.id, r.org_id, r.actor_hotkey, r.action, r.resource_type,
-                r.resource_id, r.old_value, r.new_value, r.ip_address,
+                r.resource_id,
+                _sanitize_csv_cell(r.old_value),
+                _sanitize_csv_cell(r.new_value),
+                r.ip_address,
                 r.created_at.isoformat(),
             ])
             yield buf.getvalue()

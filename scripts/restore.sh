@@ -16,6 +16,18 @@ if [ ! -f "$BACKUP_FILE" ]; then
   exit 1
 fi
 
+# --- Verify checksum if available ---
+if [ -f "${BACKUP_FILE}.sha256" ]; then
+  echo "  Verifying backup integrity..."
+  if ! shasum -a 256 -c "${BACKUP_FILE}.sha256" --status 2>/dev/null; then
+    echo "Error: Backup checksum verification failed! File may be corrupted or tampered with."
+    exit 1
+  fi
+  echo "  ✓ Checksum verified."
+else
+  echo "  Warning: No checksum file found (${BACKUP_FILE}.sha256). Proceeding without integrity verification."
+fi
+
 echo "==> Modelionn restore — $TYPE from $BACKUP_FILE"
 
 case "$TYPE" in

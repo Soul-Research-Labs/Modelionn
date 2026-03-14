@@ -39,9 +39,15 @@ def _get_nonce_redis():
         )
         _redis_nonce_client.ping()
         logger.info("Nonce replay prevention: using Redis")
-    except Exception:
+    except Exception as exc:
         _redis_nonce_client = None
-        logger.info("Nonce replay prevention: using in-memory fallback")
+        from registry.core.config import settings as _cfg
+        if not _cfg.debug:
+            raise RuntimeError(
+                "Redis is required for nonce replay prevention in production mode "
+                f"(debug=False). Redis connection failed: {exc}"
+            ) from exc
+        logger.info("Nonce replay prevention: using in-memory fallback (dev only)")
     return _redis_nonce_client
 
 

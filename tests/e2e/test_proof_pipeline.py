@@ -153,6 +153,7 @@ def _circuit_payload(*, name: str = "e2e-circuit", constraints: int = 100_000) -
         "num_public_inputs": 3,
         "num_private_inputs": 10,
         "ipfs_cid": _random_cid(),
+        "verification_key_cid": _random_cid(),
         "size_bytes": 1024 * 512,
         "tags": ["e2e", "test"],
     }
@@ -349,19 +350,19 @@ class TestFullProofPipeline:
         assert job["circuit_id"] == circuit_id
 
         # Verify job appears in listing
-        list_resp = await e2e_client.get(f"/proofs/jobs?requester={REQUESTER}")
+        list_resp = await e2e_client.get(f"/proofs/jobs?requester={REQUESTER}", headers=_auth(REQUESTER))
         assert list_resp.json()["total"] == 1
 
         # ── Step 4: Simulate dispatch + partitioning ───────
         await _simulate_dispatch(e2e_session, task_id, circuit_id)
 
         # Verify status is now PROVING via API
-        status_resp = await e2e_client.get(f"/proofs/jobs/{task_id}")
+        status_resp = await e2e_client.get(f"/proofs/jobs/{task_id}", headers=_auth(REQUESTER))
         assert status_resp.status_code == 200
         assert status_resp.json()["status"] == "proving"
 
         # Verify partitions exist
-        parts_resp = await e2e_client.get(f"/proofs/jobs/{task_id}/partitions")
+        parts_resp = await e2e_client.get(f"/proofs/jobs/{task_id}/partitions", headers=_auth(REQUESTER))
         assert parts_resp.status_code == 200
         partitions = parts_resp.json()
         assert len(partitions) >= 2  # 100k constraints / 50k per partition = 2
@@ -370,14 +371,14 @@ class TestFullProofPipeline:
         proof_id = await _simulate_completion(e2e_session, task_id, circuit_id)
 
         # Verify job is COMPLETED
-        final_resp = await e2e_client.get(f"/proofs/jobs/{task_id}")
+        final_resp = await e2e_client.get(f"/proofs/jobs/{task_id}", headers=_auth(REQUESTER))
         assert final_resp.status_code == 200
         final_job = final_resp.json()
         assert final_job["status"] == "completed"
         assert final_job["result_proof_id"] == proof_id
 
         # ── Step 6: Fetch the proof ────────────────────────
-        proof_resp = await e2e_client.get(f"/proofs/{proof_id}")
+        proof_resp = await e2e_client.get(f"/proofs/{proof_id}", headers=_auth(REQUESTER))
         assert proof_resp.status_code == 200
         proof = proof_resp.json()
         assert proof["circuit_id"] == circuit_id
@@ -385,7 +386,7 @@ class TestFullProofPipeline:
         assert proof["verified"] is False
 
         # Proof appears in listing
-        proofs_list = await e2e_client.get(f"/proofs?circuit_id={circuit_id}")
+        proofs_list = await e2e_client.get(f"/proofs?circuit_id={circuit_id}", headers=_auth(REQUESTER))
         assert proofs_list.status_code == 200
         assert proofs_list.json()["total"] >= 1
 
@@ -432,7 +433,7 @@ class TestFullProofPipeline:
             task_ids.append(resp.json()["task_id"])
 
         # All appear in listing
-        list_resp = await e2e_client.get("/proofs/jobs")
+        list_resp = await e2e_client.get("/proofs/jobs", headers=_auth(REQUESTER))
         assert list_resp.json()["total"] == 3
 
         # Each has a unique task_id
@@ -502,7 +503,7 @@ class TestProofFailureScenarios:
         job_row.status = ProofJobStatus.FAILED
         await e2e_session.commit()
 
-        resp = await e2e_client.get(f"/proofs/jobs/{task_id}")
+        resp = await e2e_client.get(f"/proofs/jobs/{task_id}", headers=_auth(REQUESTER))
         assert resp.status_code == 200
         assert resp.json()["status"] == "failed"
 
@@ -538,7 +539,7 @@ class TestProofFailureScenarios:
         # Complete some partitions, fail one (simulate redundancy saving us)
         proof_id = await _simulate_completion(e2e_session, task_id, circuit["id"])
 
-        resp = await e2e_client.get(f"/proofs/jobs/{task_id}")
+        resp = await e2e_client.get(f"/proofs/jobs/{task_id}", headers=_auth(REQUESTER))
         assert resp.status_code == 200
         assert resp.json()["status"] == "completed"
         assert resp.json()["result_proof_id"] == proof_id
@@ -580,13 +581,13 @@ class TestProofFailureScenarios:
         await _simulate_completion(e2e_session, task_ids[2], circuit["id"])
 
         # Verify independent status
-        r0 = await e2e_client.get(f"/proofs/jobs/{task_ids[0]}")
+        r0 = await e2e_client.get(f"/proofs/jobs/{task_ids[0]}", headers=_auth(REQUESTER))
         assert r0.json()["status"] == "completed"
 
-        r1 = await e2e_client.get(f"/proofs/jobs/{task_ids[1]}")
+        r1 = await e2e_client.get(f"/proofs/jobs/{task_ids[1]}", headers=_auth(REQUESTER))
         assert r1.json()["status"] == "queued"
 
-        r2 = await e2e_client.get(f"/proofs/jobs/{task_ids[2]}")
+        r2 = await e2e_client.get(f"/proofs/jobs/{task_ids[2]}", headers=_auth(REQUESTER))
         assert r2.json()["status"] == "completed"
 
     async def test_proof_request_rate_limiting(
@@ -655,17 +656,17 @@ class TestProofFailureScenarios:
         task_id = job["task_id"]
 
         # queued
-        r = await e2e_client.get(f"/proofs/jobs/{task_id}")
+        r = await e2e_client.get(f"/proofs/jobs/{task_id}", headers=_auth(REQUESTER))
         assert r.json()["status"] == "queued"
 
         # → proving
         await _simulate_dispatch(e2e_session, task_id, circuit["id"])
-        r = await e2e_client.get(f"/proofs/jobs/{task_id}")
+        r = await e2e_client.get(f"/proofs/jobs/{task_id}", headers=_auth(REQUESTER))
         assert r.json()["status"] == "proving"
 
         # → completed
         await _simulate_completion(e2e_session, task_id, circuit["id"])
-        r = await e2e_client.get(f"/proofs/jobs/{task_id}")
+        r = await e2e_client.get(f"/proofs/jobs/{task_id}", headers=_auth(REQUESTER))
         assert r.json()["status"] == "completed"
 
     async def test_unauthenticated_proof_request_rejected(

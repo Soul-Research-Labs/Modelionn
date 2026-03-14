@@ -28,6 +28,9 @@ def _mock_response(
 
 def _client_with_mock(mock_resp, **kwargs):
     """Return a ModelionnClient whose HTTP layer returns mock_resp."""
+    # Auto-provide a dummy sign_fn when hotkey is given (auth requires it)
+    if "hotkey" in kwargs and "sign_fn" not in kwargs:
+        kwargs["sign_fn"] = lambda msg: "deadbeef"
     mock_http = MagicMock()
     if isinstance(mock_resp, list):
         mock_http.request.side_effect = mock_resp

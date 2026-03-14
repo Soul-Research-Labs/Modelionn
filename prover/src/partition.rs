@@ -85,11 +85,12 @@ pub fn assign_witness_to_partitions(
     }
 
     for partition in &mut plan.partitions {
-        let start_frac = partition.constraint_start as f64 / total_constraints as f64;
-        let end_frac = partition.constraint_end as f64 / total_constraints as f64;
-
-        let byte_start = (start_frac * total_witness_bytes as f64) as usize;
-        let byte_end = (end_frac * total_witness_bytes as f64).ceil() as usize;
+        // Use integer arithmetic to avoid floating-point rounding errors
+        let byte_start = ((partition.constraint_start as u128 * total_witness_bytes as u128)
+            / total_constraints as u128) as usize;
+        let byte_end = (((partition.constraint_end as u128 * total_witness_bytes as u128)
+            + total_constraints as u128 - 1)
+            / total_constraints as u128) as usize;
         let byte_end = byte_end.min(total_witness_bytes);
 
         partition.witness_fragment = witness.assignments[byte_start..byte_end].to_vec();
@@ -109,12 +110,12 @@ fn extract_partition_data(
         return Vec::new();
     }
 
-    // Proportional extraction based on constraint range
-    let start_frac = constraint_start as f64 / total_constraints as f64;
-    let end_frac = constraint_end as f64 / total_constraints as f64;
-
-    let byte_start = (start_frac * circuit_data.len() as f64) as usize;
-    let byte_end = (end_frac * circuit_data.len() as f64).ceil() as usize;
+    // Integer arithmetic to avoid floating-point rounding errors
+    let byte_start = ((constraint_start as u128 * circuit_data.len() as u128)
+        / total_constraints as u128) as usize;
+    let byte_end = (((constraint_end as u128 * circuit_data.len() as u128)
+        + total_constraints as u128 - 1)
+        / total_constraints as u128) as usize;
     let byte_end = byte_end.min(circuit_data.len());
 
     circuit_data[byte_start..byte_end].to_vec()

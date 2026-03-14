@@ -22,13 +22,24 @@ export default function SignInPage() {
     setError("");
 
     const nonce = Math.floor(Date.now() / 1000).toString();
-    // Dev fallback: sha256(hotkey:nonce) — production uses real wallet signature
-    const encoder = new TextEncoder();
-    const data = encoder.encode(`${hotkey}:${nonce}`);
-    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-    const signature = Array.from(new Uint8Array(hashBuffer))
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
+
+    let signature: string;
+    if (process.env.NEXT_PUBLIC_DEV_AUTH === "true") {
+      // Dev-only fallback: sha256(hotkey:nonce) — MUST NOT be enabled in production builds.
+      const encoder = new TextEncoder();
+      const data = encoder.encode(`${hotkey}:${nonce}`);
+      const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+      signature = Array.from(new Uint8Array(hashBuffer))
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+    } else {
+      // Production: require real Bittensor wallet signing via browser extension
+      setLoading(false);
+      setError(
+        "Wallet signing required. Install the Bittensor wallet extension or enable NEXT_PUBLIC_DEV_AUTH for development."
+      );
+      return;
+    }
 
     const result = await signIn("wallet", {
       hotkey,

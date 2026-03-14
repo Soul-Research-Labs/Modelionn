@@ -96,7 +96,7 @@ class TestClientInit:
         assert c._auth_headers() == {}
 
     def test_auth_headers_with_hotkey(self):
-        c = ModelionnClient(hotkey="5FTestHotkey123")
+        c = ModelionnClient(hotkey="5FTestHotkey123", sign_fn=lambda msg: "test_sig")
         headers = c._auth_headers()
         assert headers["x-hotkey"] == "5FTestHotkey123"
         assert "x-nonce" in headers

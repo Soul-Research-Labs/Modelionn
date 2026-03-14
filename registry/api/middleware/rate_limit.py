@@ -45,8 +45,13 @@ def _get_redis():
         )
         _redis_client.ping()
         logger.info("Rate limiter: using Redis at %s", settings.redis_url)
-    except Exception:
+    except Exception as exc:
         _redis_client = None
+        if not settings.debug:
+            raise RuntimeError(
+                "Redis is required for rate limiting in production mode "
+                f"(debug=False). Redis connection failed: {exc}"
+            ) from exc
         logger.warning(
             "Rate limiter: Redis unavailable, using in-memory fallback. "
             "WARNING: In-memory rate limiting is NOT cluster-safe — each worker "
@@ -109,11 +114,16 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         window = settings.rate_limit_window
         max_requests = settings.rate_limit_max
 
-        # Extract client IP securely: trust only the first hop in X-Forwarded-For
-        # when behind a reverse proxy. Falls back to direct client IP.
+        # Extract client IP securely:
+        # Use the rightmost IP from X-Forwarded-For that isn't from a trusted proxy.
+        # If not behind a proxy, use the direct client IP.
+        # This prevents spoofing: attackers can prepend fake IPs, but the rightmost
+        # entry before the proxy is the real client.
         forwarded = request.headers.get("x-forwarded-for", "")
         if forwarded:
-            client_ip = forwarded.split(",")[0].strip()
+            ips = [ip.strip() for ip in forwarded.split(",")]
+            # Rightmost IP is the one set by the closest trusted proxy
+            client_ip = ips[-1] if ips else "unknown"
         else:
             client_ip = request.client.host if request.client else "unknown"
         client_id = request.headers.get("x-api-key", "") or client_ip

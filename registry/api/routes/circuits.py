@@ -121,9 +121,14 @@ async def upload_circuit(
         raise HTTPException(400, f"Circuit exceeds max constraints ({settings.max_circuit_constraints})")
 
     # Per-publisher upload rate limit: max 50 circuits per publisher
+    # Use FOR UPDATE to lock rows and prevent TOCTOU race on concurrent uploads
     publisher_circuit_count = (await db.execute(
-        select(func.count()).select_from(CircuitRow)
-        .where(CircuitRow.publisher_hotkey == publisher_hotkey)
+        select(func.count()).select_from(
+            select(CircuitRow.id)
+            .where(CircuitRow.publisher_hotkey == publisher_hotkey)
+            .with_for_update()
+            .subquery()
+        )
     )).scalar() or 0
     if publisher_circuit_count >= 50:
         raise HTTPException(429, "Upload limit reached (max 50 circuits per publisher)")

@@ -225,6 +225,7 @@ async def request_proof(
 async def get_proof_job(
     task_id: str,
     db: AsyncSession = Depends(get_db),
+    _caller: str = Depends(verify_publisher),
 ) -> dict:
     """Get proof job status."""
     row = (await db.execute(
@@ -269,14 +270,19 @@ async def get_job_partitions(
 @router.get("/jobs", response_model=ProofJobList)
 async def list_proof_jobs(
     db: AsyncSession = Depends(get_db),
+    caller: str = Depends(verify_publisher),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     status: str | None = None,
     requester: str | None = None,
 ) -> dict:
-    """List proof jobs with filters."""
-    query = select(ProofJobRow)
-    count_query = select(func.count()).select_from(ProofJobRow)
+    """List proof jobs with filters (scoped to caller's own jobs)."""
+    # Scope: callers can only see their own jobs unless filtering for others explicitly
+    effective_requester = requester or caller
+    query = select(ProofJobRow).where(ProofJobRow.requester_hotkey == effective_requester)
+    count_query = select(func.count()).select_from(ProofJobRow).where(
+        ProofJobRow.requester_hotkey == effective_requester
+    )
 
     if status:
         query = query.where(ProofJobRow.status == status)
@@ -333,6 +339,7 @@ async def list_proofs(
 async def get_proof(
     proof_id: int,
     db: AsyncSession = Depends(get_db),
+    _caller: str = Depends(verify_publisher),
 ) -> dict:
     """Get proof details."""
     row = (await db.execute(select(ProofRow).where(ProofRow.id == proof_id))).scalar_one_or_none()
@@ -345,6 +352,7 @@ async def get_proof(
 async def verify_proof(
     body: VerifyRequest,
     db: AsyncSession = Depends(get_db),
+    _caller: str = Depends(verify_publisher),
 ) -> dict:
     """Verify a generated proof using the Rust prover engine."""
     proof = (await db.execute(select(ProofRow).where(ProofRow.id == body.proof_id))).scalar_one_or_none()
@@ -442,6 +450,7 @@ _TERMINAL_STATUSES = frozenset({"completed", "failed", "timeout"})
 async def stream_proof_job(
     task_id: str,
     db: AsyncSession = Depends(get_db),
+    _caller: str = Depends(verify_publisher),
 ) -> StreamingResponse:
     """Server-Sent Events stream for real-time proof job status updates.
 
