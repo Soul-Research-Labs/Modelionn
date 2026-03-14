@@ -23,7 +23,6 @@ from subnet.base.neuron import BaseNeuron
 from subnet.base.checkpoint import Checkpoint
 from subnet.protocol.synapses import (
     CapabilityPingSynapse,
-    CommitRevealSynapse,
     ProofRequestSynapse,
     ProofVerifySynapse,
 )
@@ -147,13 +146,15 @@ class ValidatorNeuron(BaseNeuron):
         }, force=force)
 
     # ── Commit-reveal anti-frontrunning ──────────────────────
+    # TODO: Wire CommitRevealSynapse handlers to an axon endpoint.
+    # Currently the protocol layer (CommitRevealSynapse) is defined but
+    # the validator only uses a dendrite (outbound). To enable anti-frontrunning,
+    # the validator would need to serve an axon with handle_commit/handle_reveal
+    # attached. For now, the store is used internally and handlers are kept
+    # minimal. Full implementation deferred to subnet v2.
 
     def handle_commit(self, hotkey: str, artifact_name: str, commit_hash: str) -> dict:
-        """Phase 1: Record a commitment hash for later reveal.
-
-        Miners commit SHA256(name || circuit_hash || nonce) before revealing
-        their circuit submission. The first valid commit wins priority.
-        """
+        """Record a commitment hash for later reveal (internal use)."""
         # Evict expired commits
         now = time.monotonic()
         stale = [h for h, c in self._commits.items() if now - c["timestamp"] > self._COMMIT_EXPIRY_S]
