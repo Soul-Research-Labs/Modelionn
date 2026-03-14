@@ -8,7 +8,7 @@ import logging
 import re
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import select, func, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -252,12 +252,31 @@ async def get_circuit_by_hash(
     return _circuit_to_response(row)
 
 
+# Per-circuit download rate limit: max N downloads per IP per minute
+_DOWNLOAD_RATE_LIMIT = 10
+_DOWNLOAD_RATE_WINDOW = 60  # seconds
+_download_counts: dict[str, list[float]] = {}
+
+
 @router.post("/{circuit_id}/download")
 async def track_download(
     circuit_id: int,
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """Increment download counter for a circuit."""
+    import time as _time
+
+    client_ip = request.client.host if request.client else "unknown"
+    rate_key = f"{client_ip}:{circuit_id}"
+    now = _time.time()
+    window_start = now - _DOWNLOAD_RATE_WINDOW
+    hits = _download_counts.get(rate_key, [])
+    hits = [t for t in hits if t > window_start]
+    if len(hits) >= _DOWNLOAD_RATE_LIMIT:
+        raise HTTPException(429, "Download rate limit exceeded — try again later")
+    hits.append(now)
+    _download_counts[rate_key] = hits
     result = await db.execute(
         update(CircuitRow)
         .where(CircuitRow.id == circuit_id)
