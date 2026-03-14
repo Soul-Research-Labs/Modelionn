@@ -256,6 +256,82 @@ def list_proof_jobs(
     console.print(table)
 
 
+@app.command(name="cancel-proof")
+def cancel_proof_cmd(
+    task_id: str = typer.Argument(..., help="Proof job task ID to cancel"),
+    registry: str = typer.Option("", "--registry", "-r"),
+    hotkey: str = typer.Option("", "--hotkey", "-k"),
+    output_json: bool = typer.Option(False, "--json"),
+):
+    """Cancel a queued or dispatched proof job."""
+    client = _client(registry, hotkey)
+    result = client.cancel_proof_job(task_id)
+    if output_json:
+        _json_output(result)
+        return
+    console.print(f"[green]✓[/] Proof job {task_id} cancelled")
+
+
+@app.command(name="get-proof")
+def get_proof_cmd(
+    proof_id: int = typer.Argument(..., help="Proof ID"),
+    registry: str = typer.Option("", "--registry", "-r"),
+    hotkey: str = typer.Option("", "--hotkey", "-k"),
+    output_json: bool = typer.Option(False, "--json"),
+):
+    """Get details of a specific proof."""
+    client = _client(registry, hotkey)
+    result = client.get_proof(proof_id)
+    if output_json:
+        _json_output(result)
+        return
+    console.print(f"Proof ID:    {result.get('id')}")
+    console.print(f"Circuit:     {result.get('circuit_id')}")
+    console.print(f"Proof Type:  {result.get('proof_type')}")
+    console.print(f"Verified:    {'[green]yes[/]' if result.get('verified') else '[yellow]no[/]'}")
+    console.print(f"Size:        {result.get('proof_size_bytes', 0):,} bytes")
+    console.print(f"Gen Time:    {(result.get('generation_time_ms', 0) or 0) / 1000:.1f}s")
+    console.print(f"Data CID:    {result.get('proof_data_cid', 'N/A')}")
+
+
+@app.command(name="list-proofs")
+def list_proofs_cmd(
+    circuit_id: int | None = typer.Option(None, "--circuit-id", "-c"),
+    verified: bool | None = typer.Option(None, "--verified"),
+    page: int = typer.Option(1, "--page"),
+    page_size: int = typer.Option(20, "--page-size"),
+    registry: str = typer.Option("", "--registry", "-r"),
+    hotkey: str = typer.Option("", "--hotkey", "-k"),
+    output_json: bool = typer.Option(False, "--json"),
+):
+    """List generated proofs."""
+    client = _client(registry, hotkey)
+    result = client.list_proofs(circuit_id=circuit_id, verified=verified, page=page, page_size=page_size)
+    if output_json:
+        _json_output(result)
+        return
+
+    table = Table(title=f"Proofs (page {result.get('page', 1)}/{max(1, (result.get('total', 0) + page_size - 1) // page_size)})")
+    table.add_column("ID", justify="right")
+    table.add_column("Circuit", justify="right")
+    table.add_column("Type")
+    table.add_column("Verified")
+    table.add_column("Size", justify="right")
+    table.add_column("Gen Time", justify="right")
+
+    for p in result.get("items", []):
+        table.add_row(
+            str(p.get("id", "")),
+            str(p.get("circuit_id", "")),
+            p.get("proof_type", ""),
+            "[green]✓[/]" if p.get("verified") else "[dim]✗[/]",
+            f"{p.get('proof_size_bytes', 0):,}",
+            f"{(p.get('generation_time_ms', 0) or 0) / 1000:.1f}s",
+        )
+    console.print(table)
+    console.print(f"Total: {result.get('total', 0)}")
+
+
 @app.command(name="verify-proof")
 def verify_proof_cmd(
     proof_id: int = typer.Argument(..., help="Proof ID to verify"),
