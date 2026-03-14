@@ -10,6 +10,7 @@ import hashlib
 import logging
 import time
 from collections import defaultdict
+from threading import Lock
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -22,6 +23,7 @@ logger = logging.getLogger(__name__)
 # In-memory fallback (dev only)
 _request_counts: dict[str, list[float]] = defaultdict(list)
 _last_cleanup: float = 0.0
+_request_counts_lock = Lock()
 
 EXEMPT_PATHS = {"/health", "/health/ready", "/docs", "/openapi.json", "/redoc", "/metrics"}
 
@@ -94,15 +96,16 @@ def _rate_check_memory(client_hash: str, window: int, max_requests: int) -> tupl
     """In-memory sliding-window rate check. Returns (allowed, remaining)."""
     now = time.time()
     window_start = now - window
-    _request_counts[client_hash] = [
-        t for t in _request_counts[client_hash] if t > window_start
-    ]
-    _cleanup_stale_buckets()
-    if len(_request_counts[client_hash]) >= max_requests:
-        return False, 0
-    _request_counts[client_hash].append(now)
-    remaining = max_requests - len(_request_counts[client_hash])
-    return True, remaining
+    with _request_counts_lock:
+        _request_counts[client_hash] = [
+            t for t in _request_counts[client_hash] if t > window_start
+        ]
+        _cleanup_stale_buckets()
+        if len(_request_counts[client_hash]) >= max_requests:
+            return False, 0
+        _request_counts[client_hash].append(now)
+        remaining = max_requests - len(_request_counts[client_hash])
+        return True, remaining
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
