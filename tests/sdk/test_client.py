@@ -116,16 +116,20 @@ class TestRetry:
     def test_backoff_exponential(self):
         with patch("sdk.client.time.sleep") as mock_sleep:
             _sleep_backoff(0, base=1.0, cap=15.0)
-            mock_sleep.assert_called_with(1.0)
+            delay = mock_sleep.call_args[0][0]
+            assert 0.5 <= delay <= 1.0  # 1.0 * jitter(0.5..1.0)
             _sleep_backoff(1, base=1.0, cap=15.0)
-            mock_sleep.assert_called_with(2.0)
+            delay = mock_sleep.call_args[0][0]
+            assert 1.0 <= delay <= 2.0  # 2.0 * jitter
             _sleep_backoff(3, base=1.0, cap=15.0)
-            mock_sleep.assert_called_with(8.0)
+            delay = mock_sleep.call_args[0][0]
+            assert 4.0 <= delay <= 8.0  # 8.0 * jitter
 
     def test_backoff_capped(self):
         with patch("sdk.client.time.sleep") as mock_sleep:
             _sleep_backoff(10, base=1.0, cap=15.0)
-            mock_sleep.assert_called_with(15.0)
+            delay = mock_sleep.call_args[0][0]
+            assert 7.5 <= delay <= 15.0  # 15.0 * jitter
 
     def test_retry_on_503(self):
         fail_resp = _mock_response(503)

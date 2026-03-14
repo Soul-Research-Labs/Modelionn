@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import os
+import random
 import time
 from typing import Any
 
@@ -119,18 +120,18 @@ class AsyncModelionnClient:
                         if delay:
                             await asyncio.sleep(delay)
                         else:
-                            await asyncio.sleep(min(self._backoff_base * (2 ** attempt), self._backoff_cap))
+                            await asyncio.sleep(min(self._backoff_base * (2 ** attempt), self._backoff_cap) * random.uniform(0.5, 1.0))
                         continue
                     raise_for_status(resp.status_code, resp.text)
-                if resp.status_code in (502, 503, 504) and attempt < self._max_retries:
-                    await asyncio.sleep(min(self._backoff_base * (2 ** attempt), self._backoff_cap))
+                if resp.status_code in (408, 502, 503, 504) and attempt < self._max_retries:
+                    await asyncio.sleep(min(self._backoff_base * (2 ** attempt), self._backoff_cap) * random.uniform(0.5, 1.0))
                     continue
                 raise_for_status(resp.status_code, resp.text)
                 return resp
             except (httpx.ConnectError, httpx.TimeoutException) as exc:
                 last_exc = exc
                 if attempt < self._max_retries:
-                    await asyncio.sleep(min(self._backoff_base * (2 ** attempt), self._backoff_cap))
+                    await asyncio.sleep(min(self._backoff_base * (2 ** attempt), self._backoff_cap) * random.uniform(0.5, 1.0))
                     continue
                 raise ModelionnError(f"Connection failed after {self._max_retries + 1} attempts: {exc}") from exc
             except (ModelionnError, RateLimitError):
@@ -214,14 +215,25 @@ class AsyncModelionnClient:
         return resp.json()
 
     async def get_proof_job(self, task_id: str) -> dict[str, Any]:
-        resp = await self._request("GET", f"{self._url}/proofs/jobs/{task_id}")
+        resp = await self._request(
+            "GET", f"{self._url}/proofs/jobs/{task_id}", headers=self._auth_headers(),
+        )
         return resp.json()
 
     async def list_proof_jobs(self, *, status: str | None = None, page: int = 1) -> dict[str, Any]:
         params: dict[str, Any] = {"page": page}
         if status:
             params["status"] = status
-        resp = await self._request("GET", f"{self._url}/proofs/jobs", params=params)
+        resp = await self._request(
+            "GET", f"{self._url}/proofs/jobs", params=params, headers=self._auth_headers(),
+        )
+        return resp.json()
+
+    async def cancel_proof_job(self, task_id: str) -> dict[str, Any]:
+        """Cancel a queued or dispatched proof job."""
+        resp = await self._request(
+            "DELETE", f"{self._url}/proofs/jobs/{task_id}", headers=self._auth_headers(),
+        )
         return resp.json()
 
     async def verify_proof(self, proof_id: int, verification_key_cid: str, public_inputs_json: str = "{}") -> dict[str, Any]:
@@ -276,7 +288,9 @@ class AsyncModelionnClient:
     # ── ZK Proofs ────────────────────────────────────────────
 
     async def get_proof(self, proof_id: int) -> dict[str, Any]:
-        resp = await self._request("GET", f"{self._url}/proofs/{proof_id}")
+        resp = await self._request(
+            "GET", f"{self._url}/proofs/{proof_id}", headers=self._auth_headers(),
+        )
         return resp.json()
 
     async def list_proofs(
@@ -292,11 +306,15 @@ class AsyncModelionnClient:
             params["circuit_id"] = circuit_id
         if verified is not None:
             params["verified"] = str(verified).lower()
-        resp = await self._request("GET", f"{self._url}/proofs", params=params)
+        resp = await self._request(
+            "GET", f"{self._url}/proofs", params=params, headers=self._auth_headers(),
+        )
         return resp.json()
 
     async def get_job_partitions(self, task_id: str) -> list[dict[str, Any]]:
-        resp = await self._request("GET", f"{self._url}/proofs/jobs/{task_id}/partitions")
+        resp = await self._request(
+            "GET", f"{self._url}/proofs/jobs/{task_id}/partitions", headers=self._auth_headers(),
+        )
         return resp.json()
 
     # ── Organizations ────────────────────────────────────────

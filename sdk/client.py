@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import random
 import time
 from typing import Any
 
@@ -24,8 +25,8 @@ _DEFAULT_BACKOFF_CAP = 15.0  # seconds
 
 
 def _sleep_backoff(attempt: int, base: float = _DEFAULT_BACKOFF_BASE, cap: float = _DEFAULT_BACKOFF_CAP) -> None:
-    """Exponential backoff: base * 2^attempt, capped."""
-    delay = min(base * (2 ** attempt), cap)
+    """Exponential backoff with jitter: base * 2^attempt * uniform(0.5, 1.0), capped."""
+    delay = min(base * (2 ** attempt), cap) * random.uniform(0.5, 1.0)
     time.sleep(delay)
 
 
@@ -132,7 +133,7 @@ class ModelionnClient:
                             _sleep_backoff(attempt, self._backoff_base, self._backoff_cap)
                         continue
                     raise_for_status(resp.status_code, resp.text)
-                if resp.status_code in (502, 503, 504) and attempt < self._max_retries:
+                if resp.status_code in (408, 502, 503, 504) and attempt < self._max_retries:
                     _sleep_backoff(attempt, self._backoff_base, self._backoff_cap)
                     continue
                 raise_for_status(resp.status_code, resp.text)
@@ -230,7 +231,9 @@ class ModelionnClient:
 
     def get_proof_job(self, task_id: str) -> dict[str, Any]:
         """Get proof job status."""
-        resp = self._request_with_retry("GET", f"{self._url}/proofs/jobs/{task_id}")
+        resp = self._request_with_retry(
+            "GET", f"{self._url}/proofs/jobs/{task_id}", headers=self._auth_headers(),
+        )
         return resp.json()
 
     def list_proof_jobs(self, *, status: str | None = None, page: int = 1) -> dict[str, Any]:
@@ -238,7 +241,16 @@ class ModelionnClient:
         params: dict[str, Any] = {"page": page}
         if status:
             params["status"] = status
-        resp = self._request_with_retry("GET", f"{self._url}/proofs/jobs", params=params)
+        resp = self._request_with_retry(
+            "GET", f"{self._url}/proofs/jobs", params=params, headers=self._auth_headers(),
+        )
+        return resp.json()
+
+    def cancel_proof_job(self, task_id: str) -> dict[str, Any]:
+        """Cancel a queued or dispatched proof job."""
+        resp = self._request_with_retry(
+            "DELETE", f"{self._url}/proofs/jobs/{task_id}", headers=self._auth_headers(),
+        )
         return resp.json()
 
     def verify_proof(self, proof_id: int, verification_key_cid: str, public_inputs_json: str = "{}") -> dict[str, Any]:
@@ -300,7 +312,9 @@ class ModelionnClient:
 
     def get_proof(self, proof_id: int) -> dict[str, Any]:
         """Get proof details by ID."""
-        resp = self._request_with_retry("GET", f"{self._url}/proofs/{proof_id}")
+        resp = self._request_with_retry(
+            "GET", f"{self._url}/proofs/{proof_id}", headers=self._auth_headers(),
+        )
         return resp.json()
 
     def list_proofs(
@@ -317,12 +331,16 @@ class ModelionnClient:
             params["circuit_id"] = circuit_id
         if verified is not None:
             params["verified"] = str(verified).lower()
-        resp = self._request_with_retry("GET", f"{self._url}/proofs", params=params)
+        resp = self._request_with_retry(
+            "GET", f"{self._url}/proofs", params=params, headers=self._auth_headers(),
+        )
         return resp.json()
 
     def get_job_partitions(self, task_id: str) -> list[dict[str, Any]]:
         """Get partition-level status for a proof job."""
-        resp = self._request_with_retry("GET", f"{self._url}/proofs/jobs/{task_id}/partitions")
+        resp = self._request_with_retry(
+            "GET", f"{self._url}/proofs/jobs/{task_id}/partitions", headers=self._auth_headers(),
+        )
         return resp.json()
 
     # ── Organizations ────────────────────────────────────────
