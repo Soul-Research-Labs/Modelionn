@@ -299,11 +299,13 @@ class ValidatorNeuron(BaseNeuron):
         self, job_id: str, circuit_cid: str, witness_cid: str,
         proving_key_cid: str, proof_system: str, circuit_type: str,
         num_partitions: int, constraint_count: int, redundancy: int = 2,
-    ) -> None:
+    ) -> dict:
         """Dispatch a proof job to available provers.
 
         Partitions the circuit and assigns partitions to online miners
         with lowest current load and best benchmark scores.
+
+        Returns a dict with 'status' key ('dispatched', 'no_miners', etc.).
         """
         # Select the best available provers
         online = sorted(
@@ -311,8 +313,8 @@ class ValidatorNeuron(BaseNeuron):
             key=lambda p: (-p.benchmark_score, p.current_load),
         )
         if not online:
-            logger.warning("No online provers for job %s", job_id)
-            return
+            logger.error("No online provers for job %s — job cannot be dispatched", job_id)
+            return {"status": "no_miners", "job_id": job_id, "error": "No online provers available"}
 
         constraints_per_part = constraint_count // max(num_partitions, 1)
         partitions: list[dict] = []
@@ -370,6 +372,7 @@ class ValidatorNeuron(BaseNeuron):
             "Job %s dispatched: %d partitions × %d redundancy → %d requests to %d provers",
             job_id, num_partitions, redundancy, len(partitions), len(online),
         )
+        return {"status": "dispatched", "job_id": job_id, "partitions": len(partitions)}
 
     async def _send_proof_request(self, job_id: str, partition: dict) -> None:
         """Send a single proof request to a prover."""
