@@ -161,7 +161,13 @@ class MinerNeuron(BaseNeuron):
                 "halo2": ProofSystem.HALO2,
                 "stark": ProofSystem.STARK,
             }
-            ps = proof_system_map.get(synapse.proof_system, ProofSystem.GROTH16)
+            ps = proof_system_map.get(synapse.proof_system)
+            if ps is None:
+                logger.warning("Unknown proof_system '%s' — rejecting request", synapse.proof_system)
+                synapse.error = f"Unsupported proof system: {synapse.proof_system}"
+                self._total_proofs += 1
+                self._failed_proofs += 1
+                return synapse
 
             circuit_type_map = {
                 "general": CircuitType.GENERAL,
@@ -193,9 +199,10 @@ class MinerNeuron(BaseNeuron):
                 self._prover = ProverEngine()
 
             try:
+                timeout = synapse.timeout_s if getattr(synapse, 'timeout_s', 0) else 600
                 result = await asyncio.wait_for(
                     self._prover.prove(circuit, witness),
-                    timeout=600,  # 10 minute hard cap per partition
+                    timeout=timeout,
                 )
             except asyncio.TimeoutError:
                 raise TimeoutError("Proof generation timed out (600s limit)")
@@ -260,6 +267,8 @@ class MinerNeuron(BaseNeuron):
                 self._benchmark_score = synapse.benchmark_score
                 logger.info("Benchmark completed: score=%.2f (%.3fs)", synapse.benchmark_score, elapsed)
             except Exception as exc:
+                synapse.benchmark_score = -1.0
+                synapse.error = f"Benchmark failed: {str(exc)[:200]}"
                 logger.warning("Benchmark failed: %s", exc)
 
         return synapse
