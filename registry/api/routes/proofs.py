@@ -25,6 +25,7 @@ from registry.models.database import (
     ProofRow,
     ProofType,
     CircuitPartitionRow,
+    validate_status_transition,
 )
 
 logger = logging.getLogger(__name__)
@@ -283,12 +284,6 @@ async def get_job_partitions(
     ]
 
 
-_CANCELLABLE_STATUSES = {
-    ProofJobStatus.QUEUED.value,
-    ProofJobStatus.DISPATCHED.value,
-    ProofJobStatus.PROVING.value,
-}
-
 
 @router.delete("/jobs/{task_id}", status_code=200)
 async def cancel_proof_job(
@@ -306,7 +301,7 @@ async def cancel_proof_job(
         raise HTTPException(403, "You can only cancel your own proof jobs")
 
     status_val = row.status if isinstance(row.status, str) else row.status.value
-    if status_val not in _CANCELLABLE_STATUSES:
+    if not validate_status_transition(status_val, ProofJobStatus.CANCELLED):
         raise HTTPException(
             409, f"Cannot cancel job in '{status_val}' state — only queued, dispatched, or proving jobs can be cancelled"
         )

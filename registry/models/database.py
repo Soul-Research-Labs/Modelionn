@@ -67,6 +67,30 @@ class ProofJobStatus(str, enum.Enum):
     CANCELLED = "cancelled"
 
 
+# Valid state transitions for proof jobs
+VALID_TRANSITIONS: dict[ProofJobStatus, set[ProofJobStatus]] = {
+    ProofJobStatus.QUEUED: {ProofJobStatus.PARTITIONING, ProofJobStatus.DISPATCHED, ProofJobStatus.CANCELLED, ProofJobStatus.FAILED},
+    ProofJobStatus.PARTITIONING: {ProofJobStatus.DISPATCHED, ProofJobStatus.FAILED},
+    ProofJobStatus.DISPATCHED: {ProofJobStatus.PROVING, ProofJobStatus.CANCELLED, ProofJobStatus.FAILED},
+    ProofJobStatus.PROVING: {ProofJobStatus.AGGREGATING, ProofJobStatus.TIMEOUT, ProofJobStatus.CANCELLED, ProofJobStatus.FAILED},
+    ProofJobStatus.AGGREGATING: {ProofJobStatus.VERIFYING, ProofJobStatus.FAILED},
+    ProofJobStatus.VERIFYING: {ProofJobStatus.COMPLETED, ProofJobStatus.FAILED},
+    ProofJobStatus.COMPLETED: set(),
+    ProofJobStatus.FAILED: set(),
+    ProofJobStatus.TIMEOUT: set(),
+    ProofJobStatus.CANCELLED: set(),
+}
+
+
+def validate_status_transition(current: ProofJobStatus | str, target: ProofJobStatus | str) -> bool:
+    """Check if a status transition is valid. Returns True if allowed."""
+    if isinstance(current, str):
+        current = ProofJobStatus(current)
+    if isinstance(target, str):
+        target = ProofJobStatus(target)
+    return target in VALID_TRANSITIONS.get(current, set())
+
+
 class GpuBackendEnum(str, enum.Enum):
     CUDA = "cuda"
     ROCM = "rocm"
