@@ -5,7 +5,7 @@ from __future__ import annotations
 import enum
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, Enum, Float, ForeignKey, Index, Integer, String, Text, func
+from sqlalchemy import Boolean, DateTime, Enum, Float, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -367,4 +367,38 @@ class CircuitPartitionRow(Base):
 
     __table_args__ = (
         Index("ix_partition_job_index", "job_id", "partition_index", unique=True),
+    )
+
+
+# ── Webhook Configuration ───────────────────────────────────
+
+class WebhookEventType(str, enum.Enum):
+    PROOF_COMPLETED = "proof.completed"
+    PROOF_FAILED = "proof.failed"
+    CIRCUIT_UPLOADED = "circuit.uploaded"
+    PROVER_ONLINE = "prover.online"
+    PROVER_OFFLINE = "prover.offline"
+
+
+class WebhookConfigRow(Base):
+    """User-configured webhook endpoint for event notifications."""
+
+    __tablename__ = "webhook_configs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    hotkey: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    url: Mapped[str] = mapped_column(String(2048), nullable=False)
+    label: Mapped[str] = mapped_column(String(128), default="")
+    events: Mapped[str] = mapped_column(Text, nullable=False, default="*")
+    secret: Mapped[str] = mapped_column(String(64), nullable=False)
+    active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        server_default=func.now(),
+    )
+    last_triggered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        Index("ix_webhook_hotkey_active", "hotkey", "active"),
     )

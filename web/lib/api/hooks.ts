@@ -226,3 +226,37 @@ export function useSearchCircuits(q: string, page?: number) {
     enabled: q.length > 0,
   });
 }
+
+// ── Webhooks ────────────────────────────────────────────────
+
+export function useWebhooks() {
+  return useQuery({
+    queryKey: ["webhooks"],
+    queryFn: () => api.listWebhooks(),
+  });
+}
+
+export function useCreateWebhook() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: api.createWebhook,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["webhooks"] }),
+  });
+}
+
+export function useUpdateWebhook() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...body }: { id: number; url?: string; label?: string; events?: string[]; active?: boolean }) =>
+      api.updateWebhook(id, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["webhooks"] }),
+  });
+}
+
+export function useDeleteWebhook() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: api.deleteWebhook,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["webhooks"] }),
+  });
+}

@@ -93,6 +93,7 @@ from registry.api.routes.circuits import router as circuits_router  # noqa: E402
 from registry.api.routes.proofs import router as proofs_router  # noqa: E402
 from registry.api.routes.provers import router as provers_router  # noqa: E402
 from registry.api.routes.metrics import router as metrics_router  # noqa: E402
+from registry.api.routes.webhooks import router as webhooks_router  # noqa: E402
 
 app.include_router(orgs_router, prefix="/orgs", tags=["organizations"])
 app.include_router(audit_router, prefix="/audit", tags=["audit"])
@@ -101,6 +102,7 @@ app.include_router(circuits_router, prefix="/circuits", tags=["circuits"])
 app.include_router(proofs_router, prefix="/proofs", tags=["proofs"])
 app.include_router(provers_router, prefix="/provers", tags=["provers"])
 app.include_router(metrics_router, prefix="/metrics", tags=["metrics"])
+app.include_router(webhooks_router, prefix="/webhooks", tags=["webhooks"])
 
 
 @app.get("/health")

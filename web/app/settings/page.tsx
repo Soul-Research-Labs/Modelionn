@@ -6,9 +6,26 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useApiKeys, useCreateApiKey, useRevokeApiKey } from "@/lib/api";
-import { Key, Plus, Trash2, Copy, Shield } from "lucide-react";
+import {
+  useApiKeys,
+  useCreateApiKey,
+  useRevokeApiKey,
+  useWebhooks,
+  useCreateWebhook,
+  useUpdateWebhook,
+  useDeleteWebhook,
+} from "@/lib/api";
+import { Key, Plus, Trash2, Copy, Shield, Bell, Power } from "lucide-react";
 import { timeAgo } from "@/lib/utils";
+
+const WEBHOOK_EVENTS = [
+  { value: "*", label: "All events" },
+  { value: "proof.completed", label: "Proof completed" },
+  { value: "proof.failed", label: "Proof failed" },
+  { value: "circuit.uploaded", label: "Circuit uploaded" },
+  { value: "prover.online", label: "Prover online" },
+  { value: "prover.offline", label: "Prover offline" },
+];
 
 export default function SettingsPage() {
   const { data: session, status } = useSession();
@@ -21,6 +38,17 @@ export default function SettingsPage() {
   const [newKeyLimit, setNewKeyLimit] = useState(1000);
   const [createdKey, setCreatedKey] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+
+  // Webhook state
+  const { data: webhooks, isLoading: webhooksLoading } = useWebhooks();
+  const createWebhook = useCreateWebhook();
+  const updateWebhook = useUpdateWebhook();
+  const deleteWebhook = useDeleteWebhook();
+  const [showWebhookForm, setShowWebhookForm] = useState(false);
+  const [webhookUrl, setWebhookUrl] = useState("");
+  const [webhookLabel, setWebhookLabel] = useState("");
+  const [webhookEvents, setWebhookEvents] = useState<string[]>(["*"]);
+  const [createdSecret, setCreatedSecret] = useState<string | null>(null);
 
   if (status === "loading") return null;
   if (status === "unauthenticated") {
@@ -46,6 +74,42 @@ export default function SettingsPage() {
 
   const copyKey = (text: string) => {
     navigator.clipboard.writeText(text);
+  };
+
+  const handleCreateWebhook = async () => {
+    const result = await createWebhook.mutateAsync({
+      url: webhookUrl,
+      label: webhookLabel,
+      events: webhookEvents,
+    });
+    setCreatedSecret(result.secret);
+    setShowWebhookForm(false);
+    setWebhookUrl("");
+    setWebhookLabel("");
+    setWebhookEvents(["*"]);
+  };
+
+  const handleDeleteWebhook = async (id: number) => {
+    if (!confirm("Delete this webhook? This cannot be undone.")) return;
+    await deleteWebhook.mutateAsync(id);
+  };
+
+  const toggleWebhook = async (id: number, active: boolean) => {
+    await updateWebhook.mutateAsync({ id, active: !active });
+  };
+
+  const toggleEvent = (event: string) => {
+    if (event === "*") {
+      setWebhookEvents(["*"]);
+      return;
+    }
+    const filtered = webhookEvents.filter((e) => e !== "*");
+    if (filtered.includes(event)) {
+      const next = filtered.filter((e) => e !== event);
+      setWebhookEvents(next.length === 0 ? ["*"] : next);
+    } else {
+      setWebhookEvents([...filtered, event]);
+    }
   };
 
   return (
@@ -202,6 +266,173 @@ export default function SettingsPage() {
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Webhooks */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Bell className="h-5 w-5" /> Webhooks
+            </CardTitle>
+            <Button
+              size="sm"
+              onClick={() => setShowWebhookForm(!showWebhookForm)}
+              variant={showWebhookForm ? "outline" : "default"}
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              {showWebhookForm ? "Cancel" : "Add Webhook"}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Secret banner */}
+          {createdSecret && (
+            <div className="rounded-lg border border-green-200 bg-green-50 dark:bg-green-900/20 p-4">
+              <p className="text-sm font-medium text-green-700 dark:text-green-400 mb-1">
+                Webhook secret — copy it now, it will not be shown again.
+              </p>
+              <div className="flex items-center gap-2">
+                <code className="bg-white dark:bg-gray-900 border px-3 py-1 rounded text-xs flex-1 overflow-auto">
+                  {createdSecret}
+                </code>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => copyKey(createdSecret)}
+                >
+                  <Copy className="h-3 w-3" />
+                </Button>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Use this secret to verify webhook signatures (HMAC-SHA256 of the payload).
+              </p>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="mt-2 text-xs"
+                onClick={() => setCreatedSecret(null)}
+              >
+                Dismiss
+              </Button>
+            </div>
+          )}
+
+          {/* Create form */}
+          {showWebhookForm && (
+            <div className="rounded-lg border p-4 space-y-3">
+              <div>
+                <label className="block text-sm font-medium mb-1">URL (HTTPS)</label>
+                <input
+                  type="url"
+                  value={webhookUrl}
+                  onChange={(e) => setWebhookUrl(e.target.value)}
+                  placeholder="https://example.com/webhook"
+                  className="w-full rounded-md border px-3 py-1.5 text-sm"
+                  maxLength={2048}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Label</label>
+                <input
+                  type="text"
+                  value={webhookLabel}
+                  onChange={(e) => setWebhookLabel(e.target.value)}
+                  placeholder="e.g. Slack notifications"
+                  className="w-full rounded-md border px-3 py-1.5 text-sm"
+                  maxLength={128}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Events</label>
+                <div className="flex flex-wrap gap-2">
+                  {WEBHOOK_EVENTS.map((evt) => (
+                    <button
+                      key={evt.value}
+                      type="button"
+                      onClick={() => toggleEvent(evt.value)}
+                      className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${
+                        webhookEvents.includes(evt.value)
+                          ? "bg-blue-100 border-blue-300 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
+                          : "bg-gray-50 border-gray-200 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+                      }`}
+                    >
+                      {evt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <Button
+                size="sm"
+                onClick={handleCreateWebhook}
+                disabled={createWebhook.isPending || !webhookUrl.startsWith("https://")}
+              >
+                {createWebhook.isPending ? "Creating…" : "Create"}
+              </Button>
+            </div>
+          )}
+
+          {/* Webhook list */}
+          {webhooksLoading ? (
+            <p className="text-sm text-gray-400">Loading…</p>
+          ) : !webhooks?.length ? (
+            <p className="text-sm text-gray-400">
+              No webhooks configured. Add one to receive event notifications.
+            </p>
+          ) : (
+            <div className="divide-y rounded-lg border">
+              {webhooks.map((wh: Record<string, unknown>) => (
+                <div
+                  key={wh.id as number}
+                  className="flex items-center justify-between px-4 py-3"
+                >
+                  <div className="space-y-0.5 flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium truncate">
+                        {(wh.label as string) || (wh.url as string)}
+                      </span>
+                      <Badge
+                        variant={(wh.active as boolean) ? "default" : "secondary"}
+                        className="text-xs"
+                      >
+                        {(wh.active as boolean) ? "Active" : "Paused"}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-gray-500 truncate">
+                      {wh.url as string}
+                    </p>
+                    <div className="flex gap-1 mt-1">
+                      {(wh.events as string[]).map((evt: string) => (
+                        <Badge key={evt} variant="outline" className="text-xs">
+                          {evt}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 ml-2">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => toggleWebhook(wh.id as number, wh.active as boolean)}
+                      title={(wh.active as boolean) ? "Pause" : "Activate"}
+                    >
+                      <Power className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-red-500 hover:text-red-700"
+                      onClick={() => handleDeleteWebhook(wh.id as number)}
+                      disabled={deleteWebhook.isPending}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>

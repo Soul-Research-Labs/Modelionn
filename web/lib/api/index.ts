@@ -9,5 +9,6 @@ export type {
   Proof,
   Prover,
   NetworkStats,
+  Webhook,
 } from "./client";
 export * from "./hooks";

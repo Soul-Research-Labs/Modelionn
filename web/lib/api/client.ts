@@ -170,6 +170,16 @@ export interface NetworkStats {
   total_gpu_vram_bytes: number;
 }
 
+export interface Webhook {
+  id: number;
+  url: string;
+  label: string;
+  events: string[];
+  active: boolean;
+  created_at: string;
+  last_triggered_at: string | null;
+}
+
 // ── API Methods ─────────────────────────────────────────────
 
 export const api = {
@@ -320,4 +330,25 @@ export const api = {
   getProverStats: () => request<NetworkStats>("/provers/stats"),
 
   getProver: (hotkey: string) => request<Prover>(`/provers/${hotkey}`),
+
+  // Webhooks
+  listWebhooks: () => request<Webhook[]>("/webhooks"),
+
+  createWebhook: (body: { url: string; label: string; events: string[] }) =>
+    request<Webhook & { secret: string }>("/webhooks", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  updateWebhook: (
+    id: number,
+    body: { url?: string; label?: string; events?: string[]; active?: boolean },
+  ) =>
+    request<Webhook>(`/webhooks/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+
+  deleteWebhook: (id: number) =>
+    request<void>(`/webhooks/${id}`, { method: "DELETE" }),
 };
