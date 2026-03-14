@@ -180,6 +180,12 @@ class ValidatorNeuron(BaseNeuron):
         Checks that SHA256(name || artifact_hash || nonce) matches a stored commit
         from the same hotkey.
         """
+        # Evict expired commits (same as handle_commit to prevent leaks)
+        now = time.monotonic()
+        stale = [h for h, c in self._commits.items() if now - c["timestamp"] > self._COMMIT_EXPIRY_S]
+        for h in stale:
+            del self._commits[h]
+
         expected_hash = hashlib.sha256(
             f"{artifact_name}{artifact_hash}{nonce}".encode()
         ).hexdigest()
