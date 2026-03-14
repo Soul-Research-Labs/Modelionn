@@ -111,6 +111,11 @@ class MinerNeuron(BaseNeuron):
         3. Run GPU-accelerated proof generation
         4. Return proof fragment and timing data
         """
+        # Load shedding: reject when at capacity
+        if self._current_load >= 1.0:
+            synapse.error = "Miner at capacity — try again later"
+            return synapse
+
         self._current_load = min(1.0, self._current_load + 0.2)
         start = time.monotonic()
 
@@ -183,11 +188,17 @@ class MinerNeuron(BaseNeuron):
                 public_inputs=b"",
             )
 
-            # Generate proof
+            # Generate proof with timeout
             if self._prover is None:
                 self._prover = ProverEngine()
 
-            result = await self._prover.prove(circuit, witness)
+            try:
+                result = await asyncio.wait_for(
+                    self._prover.prove(circuit, witness),
+                    timeout=600,  # 10 minute hard cap per partition
+                )
+            except asyncio.TimeoutError:
+                raise TimeoutError("Proof generation timed out (600s limit)")
 
             elapsed_ms = int((time.monotonic() - start) * 1000)
             synapse.proof_fragment = result.data
