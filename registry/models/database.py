@@ -64,6 +64,7 @@ class ProofJobStatus(str, enum.Enum):
     COMPLETED = "completed"
     FAILED = "failed"
     TIMEOUT = "timeout"
+    CANCELLED = "cancelled"
 
 
 class GpuBackendEnum(str, enum.Enum):

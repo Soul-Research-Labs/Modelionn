@@ -267,6 +267,42 @@ async def get_job_partitions(
     ]
 
 
+_CANCELLABLE_STATUSES = {
+    ProofJobStatus.QUEUED.value,
+    ProofJobStatus.DISPATCHED.value,
+}
+
+
+@router.delete("/jobs/{task_id}", status_code=200)
+async def cancel_proof_job(
+    task_id: str,
+    db: AsyncSession = Depends(get_db),
+    caller: str = Depends(verify_publisher),
+) -> dict:
+    """Cancel a proof job. Only the requester can cancel, and only if queued/dispatched."""
+    row = (await db.execute(
+        select(ProofJobRow).where(ProofJobRow.task_id == task_id)
+    )).scalar_one_or_none()
+    if not row:
+        raise HTTPException(404, "Proof job not found")
+    if row.requester_hotkey != caller:
+        raise HTTPException(403, "You can only cancel your own proof jobs")
+
+    status_val = row.status if isinstance(row.status, str) else row.status.value
+    if status_val not in _CANCELLABLE_STATUSES:
+        raise HTTPException(
+            409, f"Cannot cancel job in '{status_val}' state — only queued or dispatched jobs can be cancelled"
+        )
+
+    row.status = ProofJobStatus.CANCELLED
+    row.completed_at = datetime.now(timezone.utc)
+    await db.commit()
+    await db.refresh(row)
+
+    logger.info("Proof job cancelled: task_id=%s by=%s", task_id, caller)
+    return _job_to_response(row)
+
+
 @router.get("/jobs", response_model=ProofJobList)
 async def list_proof_jobs(
     db: AsyncSession = Depends(get_db),
