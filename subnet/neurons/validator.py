@@ -23,9 +23,11 @@ from subnet.base.neuron import BaseNeuron
 from subnet.base.checkpoint import Checkpoint
 from subnet.protocol.synapses import (
     CapabilityPingSynapse,
+    CommitRevealSynapse,
     ProofRequestSynapse,
     ProofVerifySynapse,
 )
+from subnet.consensus.engine import ConsensusEngine, VerificationVote
 from subnet.reward.scoring import ProverScore, ProverRewardWeights, compute_prover_rewards
 
 logger = logging.getLogger(__name__)
@@ -78,6 +80,14 @@ class ValidatorNeuron(BaseNeuron):
         self.PING_INTERVAL_STEPS = 5  # Ping every 5 steps (~60s)
         self.WEIGHT_SET_INTERVAL = 100
         self._steps_since_weight_set = 0
+
+        # Consensus engine for multi-validator proof verification
+        self._consensus = ConsensusEngine()
+
+        # Commit-reveal store for anti-frontrunning
+        # Maps commit_hash → {hotkey, artifact_name, timestamp}
+        self._commits: dict[str, dict] = {}
+        self._COMMIT_EXPIRY_S = 600  # Commits expire after 10 minutes
 
         # State persistence
         self._checkpoint = Checkpoint("validator")
@@ -135,6 +145,63 @@ class ValidatorNeuron(BaseNeuron):
             "scores": self.scores.tolist(),
             "step": self._step,
         }, force=force)
+
+    # ── Commit-reveal anti-frontrunning ──────────────────────
+
+    def handle_commit(self, hotkey: str, artifact_name: str, commit_hash: str) -> dict:
+        """Phase 1: Record a commitment hash for later reveal.
+
+        Miners commit SHA256(name || circuit_hash || nonce) before revealing
+        their circuit submission. The first valid commit wins priority.
+        """
+        # Evict expired commits
+        now = time.monotonic()
+        stale = [h for h, c in self._commits.items() if now - c["timestamp"] > self._COMMIT_EXPIRY_S]
+        for h in stale:
+            del self._commits[h]
+
+        if commit_hash in self._commits:
+            return {"accepted": False, "is_earliest": False, "error": "Duplicate commit hash"}
+
+        is_earliest = not any(
+            c["artifact_name"] == artifact_name for c in self._commits.values()
+        )
+        self._commits[commit_hash] = {
+            "hotkey": hotkey,
+            "artifact_name": artifact_name,
+            "timestamp": now,
+        }
+        logger.info("Commit recorded: %s from %s (earliest=%s)", commit_hash[:16], hotkey[:12], is_earliest)
+        return {"accepted": True, "is_earliest": is_earliest, "error": ""}
+
+    def handle_reveal(self, hotkey: str, artifact_name: str, artifact_hash: str, nonce: str) -> dict:
+        """Phase 2: Verify that the reveal matches a prior commitment.
+
+        Checks that SHA256(name || artifact_hash || nonce) matches a stored commit
+        from the same hotkey.
+        """
+        expected_hash = hashlib.sha256(
+            f"{artifact_name}{artifact_hash}{nonce}".encode()
+        ).hexdigest()
+
+        commit = self._commits.get(expected_hash)
+        if not commit:
+            return {"accepted": False, "is_earliest": False, "error": "No matching commit found"}
+        if commit["hotkey"] != hotkey:
+            return {"accepted": False, "is_earliest": False, "error": "Commit/reveal hotkey mismatch"}
+
+        # Valid reveal — check if this was the first commit for the artifact
+        is_earliest = True
+        for ch, c in self._commits.items():
+            if c["artifact_name"] == artifact_name and c["timestamp"] < commit["timestamp"]:
+                is_earliest = False
+                break
+
+        # Clean up the used commit
+        del self._commits[expected_hash]
+
+        logger.info("Reveal accepted: %s from %s (earliest=%s)", artifact_hash[:16], hotkey[:12], is_earliest)
+        return {"accepted": True, "is_earliest": is_earliest, "error": ""}
 
     # ── Main loop ────────────────────────────────────────────
 
@@ -369,63 +436,79 @@ class ValidatorNeuron(BaseNeuron):
     async def _verify_and_finalize_job(
         self, job_id: str, job: dict, partition_done: dict[int, dict],
     ) -> None:
-        """Cross-verify proof fragments by asking other miners to verify."""
-        # For each partition, pick a different prover to verify
+        """Cross-verify proof fragments using multi-validator consensus engine."""
         online = [p for p in self._provers.values() if p.online]
         if len(online) < 2:
-            # Not enough provers for cross-verification, accept as-is
             job["status"] = "completed"
             logger.info("Job %s completed (no cross-verification, <2 provers)", job_id)
             return
 
+        # Build stake map from metagraph
+        stakes: dict[str, float] = {}
+        for p in online:
+            try:
+                stakes[p.hotkey] = float(self.metagraph.S[p.uid])
+            except Exception:
+                stakes[p.hotkey] = 1.0
+
         verified_count = 0
+        total = len(partition_done)
+
         for pidx, part in partition_done.items():
             result = part["result"]
             if not result or not result.get("proof_fragment"):
                 continue
 
-            # Compute content hash for integrity verification
             fragment_data = result["proof_fragment"]
             if isinstance(fragment_data, str):
                 fragment_data = fragment_data.encode()
             fragment_hash = hashlib.sha256(fragment_data).hexdigest()
-
-            # The proof_fragment should already have been uploaded to IPFS by the miner.
-            # Use the commitment (which should be the IPFS CID) for verification.
-            # If no CID was provided, use the content hash as a fallback reference.
             proof_cid = result.get("commitment") or fragment_hash
 
-            # Ask a different prover to verify
+            # Select verifiers via consensus engine (excluding the generator)
             generating_uid = part["prover_uid"]
-            verifiers = [p for p in online if p.uid != generating_uid]
-            if not verifiers:
+            candidates = [p.hotkey for p in online if p.uid != generating_uid]
+            if not candidates:
                 verified_count += 1
                 continue
 
-            verifier = verifiers[0]
+            verifiers = self._consensus.assign_verifiers(job_id, candidates, stakes)
+
+            # Send verification requests to all assigned verifiers in parallel
             verify_synapse = ProofVerifySynapse(
                 proof_cid=proof_cid,
                 circuit_cid=job["circuit_cid"],
                 proof_system=job["proof_system"],
                 expected_hash=fragment_hash,
             )
-            try:
-                responses = await self.dendrite(
-                    axons=[self.metagraph.axons[verifier.uid]],
-                    synapse=verify_synapse,
-                    timeout=60,
+            hotkey_to_uid = {p.hotkey: p.uid for p in online}
+            verify_tasks = []
+            for v_hotkey in verifiers:
+                v_uid = hotkey_to_uid.get(v_hotkey)
+                if v_uid is None:
+                    continue
+                verify_tasks.append(
+                    self._request_verification(v_uid, v_hotkey, job_id, pidx, verify_synapse)
                 )
-                if responses and responses[0].is_success and responses[0].valid:
-                    verified_count += 1
-                else:
-                    logger.warning(
-                        "Job %s partition %d verification failed by uid=%d",
-                        job_id, pidx, verifier.uid,
-                    )
-            except Exception as e:
-                logger.error("Verification request failed: %s", e)
 
-        total = len(partition_done)
+            votes = await asyncio.gather(*verify_tasks, return_exceptions=True)
+            for v in votes:
+                if isinstance(v, VerificationVote):
+                    self._consensus.submit_vote(v)
+
+            # Compute consensus for this partition
+            consensus = self._consensus.compute_consensus(job_id, pidx, stakes)
+            if consensus and consensus.reached_consensus and consensus.consensus_valid:
+                verified_count += 1
+            elif consensus:
+                logger.warning(
+                    "Job %s partition %d consensus: valid=%s ratio=%.2f quorum=%d",
+                    job_id, pidx, consensus.consensus_valid,
+                    consensus.agreement_ratio, consensus.quorum_size,
+                )
+            else:
+                logger.warning("Job %s partition %d: insufficient votes for consensus", job_id, pidx)
+
         if verified_count >= total * 0.7:
             job["status"] = "completed"
             elapsed = time.monotonic() - job["started_at"]
@@ -434,6 +517,32 @@ class ValidatorNeuron(BaseNeuron):
         else:
             job["status"] = "failed"
             logger.warning("Job %s verification failed (%d/%d)", job_id, verified_count, total)
+
+    async def _request_verification(
+        self, verifier_uid: int, verifier_hotkey: str,
+        job_id: str, partition_index: int, synapse: ProofVerifySynapse,
+    ) -> VerificationVote:
+        """Send a verification request to a single verifier and return a vote."""
+        start = time.monotonic()
+        try:
+            responses = await self.dendrite(
+                axons=[self.metagraph.axons[verifier_uid]],
+                synapse=synapse,
+                timeout=60,
+            )
+            valid = bool(responses and responses[0].is_success and responses[0].valid)
+        except Exception as e:
+            logger.error("Verification request to uid=%d failed: %s", verifier_uid, e)
+            valid = False
+
+        elapsed_ms = int((time.monotonic() - start) * 1000)
+        return VerificationVote(
+            validator_hotkey=verifier_hotkey,
+            job_id=job_id,
+            partition_index=partition_index,
+            valid=valid,
+            verification_time_ms=elapsed_ms,
+        )
 
     # ── Scoring ──────────────────────────────────────────────
 
