@@ -80,6 +80,16 @@ All notable changes to Modelionn are documented in this file.
 - Version bumped to 0.2.0 (aligned pyproject.toml with app.py)
 - CONTRIBUTING.md: remove ghost `tests/evaluation/` references
 - DEPLOYMENT.md: fix `DATABASE_URL` → `MODELIONN_DATABASE_URL` in troubleshooting
+- Web CI now runs Jest in the web pipeline (`npm test -- --runInBand`) in addition to lint and typecheck
+- Frontend auth pages now wrap `useSearchParams()` in `Suspense` to satisfy Next.js prerender/build requirements
+- Settings UI now aligns with typed API contracts (`ApiKey`/`Webhook`) and uses strongly typed field access
+- Frontend lint/type cleanup across dashboard/routes/realtime hooks removes unused imports, empty interfaces, and explicit `any`
+- Added `web/.eslintrc.json` for deterministic non-interactive linting in local and CI environments
+
+### Changed (Documentation)
+
+- README operational guides table formatting normalized for readability
+- Operational runbooks normalized with trailing newlines for cleaner diffs/tooling consistency
 
 ## [Unreleased]
 
