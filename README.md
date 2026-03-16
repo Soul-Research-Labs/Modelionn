@@ -262,9 +262,10 @@ CI runs on every push and PR:
 1. **Lint** — ruff check
 2. **Type check** — mypy
 3. **Test** — pytest with coverage upload to Codecov
-4. **Security scan** — Bandit (SAST), pip-audit (CVE scan), npm audit
-5. **Alembic** — Migration chain integrity check
-6. **Docker** — Compose build verification (all branches)
+4. **Frontend test** — Jest suite for dashboard pages/components
+5. **Security scan** — Bandit (SAST), pip-audit (CVE scan), npm audit
+6. **Alembic** — Migration chain integrity check
+7. **Docker** — Compose build verification (all branches)
 
 ### Publishing to PyPI
 

@@ -96,7 +96,7 @@ describe("CircuitsPage", () => {
 
     await user.click(screen.getByText("Upload Circuit"));
     // The upload modal should now be visible with form fields
-    expect(screen.getByText("Upload New Circuit")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("my-circuit")).toBeInTheDocument();
   });
 
   it("links each circuit card to its detail page", () => {

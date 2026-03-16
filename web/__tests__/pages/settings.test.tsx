@@ -4,6 +4,10 @@ import { renderWithProviders, userEvent } from "../helpers";
 const mockApiKeys = jest.fn();
 const mockCreateApiKey = jest.fn();
 const mockRevokeApiKey = jest.fn();
+const mockWebhooks = jest.fn();
+const mockCreateWebhook = jest.fn();
+const mockUpdateWebhook = jest.fn();
+const mockDeleteWebhook = jest.fn();
 
 jest.mock("@/lib/api", () => ({
   useApiKeys: () => ({ data: mockApiKeys(), isLoading: false }),
@@ -13,6 +17,19 @@ jest.mock("@/lib/api", () => ({
   }),
   useRevokeApiKey: () => ({
     mutateAsync: mockRevokeApiKey,
+    isPending: false,
+  }),
+  useWebhooks: () => ({ data: mockWebhooks(), isLoading: false }),
+  useCreateWebhook: () => ({
+    mutateAsync: mockCreateWebhook,
+    isPending: false,
+  }),
+  useUpdateWebhook: () => ({
+    mutateAsync: mockUpdateWebhook,
+    isPending: false,
+  }),
+  useDeleteWebhook: () => ({
+    mutateAsync: mockDeleteWebhook,
     isPending: false,
   }),
 }));
@@ -35,6 +52,10 @@ describe("SettingsPage", () => {
     mockApiKeys.mockReturnValue(undefined);
     mockCreateApiKey.mockReset();
     mockRevokeApiKey.mockReset();
+    mockWebhooks.mockReturnValue([]);
+    mockCreateWebhook.mockReset();
+    mockUpdateWebhook.mockReset();
+    mockDeleteWebhook.mockReset();
   });
 
   it("renders the Settings heading and profile section", () => {
@@ -82,8 +103,8 @@ describe("SettingsPage", () => {
     renderWithProviders(<SettingsPage />);
 
     await user.click(screen.getByText("Create Key"));
-    expect(screen.getByLabelText(/label/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/daily limit/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("e.g. CI pipeline")).toBeInTheDocument();
+    expect(screen.getByText("Daily Limit")).toBeInTheDocument();
   });
 
   it("displays the hotkey from session", () => {

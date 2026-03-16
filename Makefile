@@ -1,4 +1,4 @@
-.PHONY: run test test-fast lint typecheck docker-up docker-down build-web clean web-lint web-typecheck ci
+.PHONY: run test test-fast lint typecheck docker-up docker-down build-web clean web-lint web-typecheck web-test ci
 
 # ── Development ────────────────────────────────────────────
 
@@ -49,6 +49,9 @@ web-lint:
 web-typecheck:
 	cd web && npx tsc --noEmit
 
+web-test:
+	cd web && npm test -- --runInBand
+
 # ── Database Migrations ────────────────────────────────────
 
 migrate:
@@ -62,7 +65,7 @@ migrate-check:
 
 # ── CI composite ──────────────────────────────────────────
 
-ci: lint typecheck test web-lint web-typecheck build-web cargo-check
+ci: lint typecheck test web-lint web-typecheck web-test build-web cargo-check
 	@echo "\n✓ All CI checks passed"
 
 cargo-check:
