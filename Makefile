@@ -1,4 +1,4 @@
-.PHONY: run test test-fast lint typecheck docker-up docker-down build-web clean web-lint web-typecheck web-test ci
+.PHONY: run test test-fast lint typecheck docker-up docker-down deploy-preflight build-web clean web-lint web-typecheck web-test ci
 
 # ── Development ────────────────────────────────────────────
 
@@ -34,6 +34,9 @@ docker-down:
 
 docker-logs:
 	docker compose logs -f
+
+deploy-preflight:
+	bash ./scripts/deploy_preflight.sh
 
 # ── Web Dashboard ──────────────────────────────────────────
 

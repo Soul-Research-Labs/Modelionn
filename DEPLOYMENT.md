@@ -41,6 +41,16 @@ Required variables:
 
 ### 2. Start Services
 
+Run the preflight validator to catch missing secrets and compose issues early:
+
+```bash
+./scripts/deploy_preflight.sh .env
+# or
+make deploy-preflight
+```
+
+Then start services:
+
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 ```

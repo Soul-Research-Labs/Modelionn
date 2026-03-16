@@ -153,6 +153,12 @@ docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d
 
 For production deployment, see [DEPLOYMENT.md](DEPLOYMENT.md).
 
+Before a production rollout, run:
+
+```bash
+./scripts/deploy_preflight.sh .env
+```
+
 Operational runbooks:
 
 - [docs/environment-setup.md](docs/environment-setup.md)
