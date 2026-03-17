@@ -316,3 +316,69 @@ async def get_prover(
     if not row:
         raise HTTPException(404, "Prover not found")
     return _prover_to_response(row)
+
+
+@router.get("/{hotkey_param}/reputation")
+async def get_prover_reputation(
+    hotkey_param: str,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Get prover reputation score and performance metrics history."""
+    from registry.models.database import ProofJobRow, CircuitPartitionRow
+
+    row = (await db.execute(
+        select(ProverCapabilityRow).where(ProverCapabilityRow.hotkey == hotkey_param)
+    )).scalar_one_or_none()
+    if not row:
+        raise HTTPException(404, "Prover not found")
+
+    # Count partition assignments and completions
+    total_assigned = (await db.execute(
+        select(func.count()).select_from(CircuitPartitionRow).where(
+            CircuitPartitionRow.assigned_prover == hotkey_param,
+        )
+    )).scalar() or 0
+
+    total_completed = (await db.execute(
+        select(func.count()).select_from(CircuitPartitionRow).where(
+            CircuitPartitionRow.assigned_prover == hotkey_param,
+            CircuitPartitionRow.status == "completed",
+        )
+    )).scalar() or 0
+
+    total_failed = (await db.execute(
+        select(func.count()).select_from(CircuitPartitionRow).where(
+            CircuitPartitionRow.assigned_prover == hotkey_param,
+            CircuitPartitionRow.status == "failed",
+        )
+    )).scalar() or 0
+
+    avg_gen_time = (await db.execute(
+        select(func.avg(CircuitPartitionRow.generation_time_ms)).where(
+            CircuitPartitionRow.assigned_prover == hotkey_param,
+            CircuitPartitionRow.status == "completed",
+            CircuitPartitionRow.generation_time_ms.isnot(None),
+        )
+    )).scalar() or 0.0
+
+    completion_rate = total_completed / max(total_assigned, 1)
+    # Reputation score: weighted combination of completion rate, uptime, and benchmark
+    reputation_score = (
+        0.4 * completion_rate
+        + 0.3 * float(row.uptime_ratio or 0.0)
+        + 0.3 * min(float(row.benchmark_score or 0.0) / 100.0, 1.0)
+    )
+
+    return {
+        "hotkey": hotkey_param,
+        "reputation_score": round(reputation_score, 4),
+        "completion_rate": round(completion_rate, 4),
+        "total_assigned": total_assigned,
+        "total_completed": total_completed,
+        "total_failed": total_failed,
+        "avg_generation_time_ms": round(float(avg_gen_time), 2),
+        "benchmark_score": float(row.benchmark_score or 0.0),
+        "uptime_ratio": float(row.uptime_ratio or 0.0),
+        "online": row.online,
+        "stake": float(row.stake or 0.0),
+    }

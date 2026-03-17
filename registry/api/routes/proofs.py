@@ -115,6 +115,11 @@ class PartitionStatus(BaseModel):
     gpu_backend_used: str | None
 
 
+class BatchProofRequest(BaseModel):
+    """Batch proof request — submit up to 10 jobs at once."""
+    jobs: list[ProofRequest] = Field(..., min_length=1, max_length=10)
+
+
 def _job_to_response(row: ProofJobRow) -> dict:
     circuit_name = row.circuit.name if row.circuit else None
     return {
@@ -237,6 +242,97 @@ async def request_proof(
 
     logger.info("Proof job created: task_id=%s circuit=%s partitions=%d", task_id, circuit.name, num_partitions)
     return _job_to_response(row)
+
+
+@router.post("/jobs/batch", status_code=202)
+async def request_proof_batch(
+    body: BatchProofRequest,
+    db: AsyncSession = Depends(get_db),
+    requester_hotkey: str = Depends(verify_publisher),
+) -> dict:
+    """Submit up to 10 proof generation requests in a single call.
+
+    Each job is validated independently. If any job fails validation,
+    only that job is skipped — successfully validated jobs are still created.
+    """
+    # Check overall pending limit: batch size + current pending <= 10
+    _active_statuses = [ProofJobStatus.QUEUED.value, ProofJobStatus.DISPATCHED.value, ProofJobStatus.PROVING.value]
+    pending_count = (await db.execute(
+        select(func.count()).select_from(ProofJobRow).where(
+            ProofJobRow.requester_hotkey == requester_hotkey,
+            ProofJobRow.status.in_(_active_statuses),
+        )
+    )).scalar() or 0
+
+    remaining_slots = 10 - pending_count
+    if remaining_slots <= 0:
+        raise HTTPException(429, "Too many pending proof jobs (max 10)")
+
+    results: list[dict] = []
+    created_count = 0
+
+    for job_req in body.jobs[:remaining_slots]:
+        try:
+            # Validate circuit
+            circuit = (await db.execute(
+                select(CircuitRow).where(CircuitRow.id == job_req.circuit_id)
+            )).scalar_one_or_none()
+            if not circuit:
+                results.append({"status": "error", "circuit_id": job_req.circuit_id, "error": "Circuit not found"})
+                continue
+            if not circuit.verification_key_cid:
+                results.append({"status": "error", "circuit_id": job_req.circuit_id, "error": "Missing verification key"})
+                continue
+            if not _CID_RE.match(job_req.witness_cid):
+                results.append({"status": "error", "circuit_id": job_req.circuit_id, "error": "Invalid witness CID format"})
+                continue
+
+            # Dedup check
+            dup = (await db.execute(
+                select(ProofJobRow.id).where(
+                    ProofJobRow.requester_hotkey == requester_hotkey,
+                    ProofJobRow.circuit_id == job_req.circuit_id,
+                    ProofJobRow.witness_cid == job_req.witness_cid,
+                    ProofJobRow.status.in_(_active_statuses),
+                ).limit(1)
+            )).scalar_one_or_none()
+            if dup:
+                results.append({"status": "error", "circuit_id": job_req.circuit_id, "error": "Duplicate job already active"})
+                continue
+
+            task_id = uuid.uuid4().hex[:16]
+            max_per = settings.max_constraints_per_partition
+            num_partitions = max(1, (circuit.num_constraints + max_per - 1) // max_per)
+            num_partitions = min(num_partitions, settings.max_partitions_per_job)
+
+            row = ProofJobRow(
+                task_id=task_id,
+                circuit_id=job_req.circuit_id,
+                requester_hotkey=requester_hotkey,
+                status=ProofJobStatus.QUEUED,
+                num_partitions=num_partitions,
+                redundancy=settings.partition_redundancy,
+                witness_cid=job_req.witness_cid,
+                public_inputs_json=json.dumps(job_req.public_inputs) if job_req.public_inputs else None,
+                config_json=json.dumps(job_req.config) if job_req.config else None,
+            )
+            db.add(row)
+            await db.flush()
+
+            try:
+                from registry.tasks.proof_dispatch import dispatch_proof_job
+                dispatch_proof_job.delay(row.id, request_id_ctx.get())
+            except Exception as exc:
+                logger.warning("Celery unavailable for batch dispatch: %s", exc)
+
+            results.append({"status": "created", "task_id": task_id, "circuit_id": job_req.circuit_id})
+            created_count += 1
+        except Exception as exc:
+            results.append({"status": "error", "circuit_id": job_req.circuit_id, "error": str(exc)[:200]})
+
+    await db.commit()
+    logger.info("Batch proof request: %d/%d created by %s", created_count, len(body.jobs), requester_hotkey)
+    return {"created": created_count, "total_requested": len(body.jobs), "results": results}
 
 
 @router.get("/jobs/{task_id}", response_model=ProofJobResponse)

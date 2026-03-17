@@ -286,3 +286,63 @@ async def track_download(
         raise HTTPException(404, "Circuit not found")
     await db.commit()
     return {"status": "ok"}
+
+
+@router.delete("/{circuit_id}", status_code=200)
+async def soft_delete_circuit(
+    circuit_id: int,
+    db: AsyncSession = Depends(get_db),
+    caller: str = Depends(verify_publisher),
+) -> dict:
+    """Soft-delete a circuit. Only the publisher or an admin can delete."""
+    row = (await db.execute(
+        select(CircuitRow).where(CircuitRow.id == circuit_id, CircuitRow.deleted_at.is_(None))
+    )).scalar_one_or_none()
+    if not row:
+        raise HTTPException(404, "Circuit not found")
+    if row.publisher_hotkey != caller:
+        raise HTTPException(403, "Only the publisher can delete this circuit")
+
+    row.deleted_at = datetime.now(timezone.utc)
+    await db.commit()
+
+    logger.info("Circuit %d soft-deleted by %s", circuit_id, caller)
+    return {"status": "deleted", "circuit_id": circuit_id}
+
+
+@router.get("/{circuit_id}/versions", response_model=CircuitList)
+async def list_circuit_versions(
+    circuit_id: int,
+    db: AsyncSession = Depends(get_db),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+) -> dict:
+    """List all versions of a circuit by looking up the circuit's name."""
+    # First get the circuit to find its name
+    circuit = (await db.execute(
+        select(CircuitRow).where(CircuitRow.id == circuit_id, CircuitRow.deleted_at.is_(None))
+    )).scalar_one_or_none()
+    if not circuit:
+        raise HTTPException(404, "Circuit not found")
+
+    query = select(CircuitRow).where(
+        CircuitRow.name == circuit.name,
+        CircuitRow.deleted_at.is_(None),
+    )
+    count_query = select(func.count()).select_from(CircuitRow).where(
+        CircuitRow.name == circuit.name,
+        CircuitRow.deleted_at.is_(None),
+    )
+    total = (await db.execute(count_query)).scalar() or 0
+    rows = (await db.execute(
+        query.order_by(CircuitRow.created_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    )).scalars().all()
+
+    return {
+        "items": [_circuit_to_response(r) for r in rows],
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+    }
