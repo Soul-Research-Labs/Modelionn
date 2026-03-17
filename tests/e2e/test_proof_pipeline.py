@@ -460,6 +460,80 @@ class TestFullProofPipeline:
 class TestProofFailureScenarios:
     """E2E tests for failure, timeout, and concurrency edge cases."""
 
+    async def test_proof_request_rejected_when_verification_key_missing(
+        self,
+        e2e_client: AsyncClient,
+    ):
+        """Proof requests must fail if the circuit lacks a verification key CID."""
+        payload = _circuit_payload(name="no-vk")
+        payload["verification_key_cid"] = None
+
+        circuit_resp = await e2e_client.post(
+            "/circuits",
+            json=payload,
+            headers=_auth(PUBLISHER),
+        )
+        assert circuit_resp.status_code == 201
+        circuit_id = circuit_resp.json()["id"]
+
+        resp = await e2e_client.post(
+            "/proofs/jobs",
+            json={"circuit_id": circuit_id, "witness_cid": _random_cid()},
+            headers=_auth(REQUESTER),
+        )
+        assert resp.status_code == 400
+        assert "missing a verification key CID" in resp.json()["detail"]
+
+    async def test_proof_request_rejects_malformed_witness_cid(
+        self,
+        e2e_client: AsyncClient,
+    ):
+        """Malformed witness CIDs should be rejected before enqueueing proof jobs."""
+        circuit_resp = await e2e_client.post(
+            "/circuits",
+            json=_circuit_payload(name="bad-witness-cid"),
+            headers=_auth(PUBLISHER),
+        )
+        assert circuit_resp.status_code == 201
+        circuit_id = circuit_resp.json()["id"]
+
+        resp = await e2e_client.post(
+            "/proofs/jobs",
+            json={"circuit_id": circuit_id, "witness_cid": "not-a-valid-cid"},
+            headers=_auth(REQUESTER),
+        )
+        assert resp.status_code == 400
+        assert "Invalid witness CID format" in resp.json()["detail"]
+
+    async def test_duplicate_active_proof_job_is_rejected(
+        self,
+        e2e_client: AsyncClient,
+    ):
+        """A duplicate active job with the same circuit+witness should return 409."""
+        circuit_resp = await e2e_client.post(
+            "/circuits",
+            json=_circuit_payload(name="dedup-job"),
+            headers=_auth(PUBLISHER),
+        )
+        assert circuit_resp.status_code == 201
+        circuit_id = circuit_resp.json()["id"]
+        witness_cid = _random_cid()
+
+        first = await e2e_client.post(
+            "/proofs/jobs",
+            json={"circuit_id": circuit_id, "witness_cid": witness_cid},
+            headers=_auth(REQUESTER),
+        )
+        assert first.status_code == 202
+
+        second = await e2e_client.post(
+            "/proofs/jobs",
+            json={"circuit_id": circuit_id, "witness_cid": witness_cid},
+            headers=_auth(REQUESTER),
+        )
+        assert second.status_code == 409
+        assert "already in progress" in second.json()["detail"]
+
     async def test_proof_job_with_all_partitions_failed(
         self,
         e2e_client: AsyncClient,
