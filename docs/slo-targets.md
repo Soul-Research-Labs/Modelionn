@@ -4,45 +4,45 @@ This document defines the target availability, latency, and reliability metrics 
 
 ## Availability SLOs
 
-| Service | Target | Notes |
-|---------|--------|-------|
-| **Registry API** | 99.5% uptime | Excludes planned maintenance windows |
-| **IPFS Storage** | 99.0% uptime | Content-addressed circuits and proofs |
-| **Redis Cache/Lock** | 99.0% uptime | Dispatch locks, rate limiter state, session cache |
-| **PostgreSQL Database** | 99.5% uptime | Proof job state, audit trail, API keys |
-| **Web Dashboard** | 99.0% uptime | Next.js frontend CDN delivery |
-| **Celery Worker Pool** | 99.0% availability | Async proof dispatch and aggregation |
+| Service                 | Target             | Notes                                             |
+| ----------------------- | ------------------ | ------------------------------------------------- |
+| **Registry API**        | 99.5% uptime       | Excludes planned maintenance windows              |
+| **IPFS Storage**        | 99.0% uptime       | Content-addressed circuits and proofs             |
+| **Redis Cache/Lock**    | 99.0% uptime       | Dispatch locks, rate limiter state, session cache |
+| **PostgreSQL Database** | 99.5% uptime       | Proof job state, audit trail, API keys            |
+| **Web Dashboard**       | 99.0% uptime       | Next.js frontend CDN delivery                     |
+| **Celery Worker Pool**  | 99.0% availability | Async proof dispatch and aggregation              |
 
 ## Latency SLOs (p95)
 
-| Operation | Target | Notes |
-|-----------|--------|-------|
-| **Proof Job Status** | < 500ms | GET `/proofs/jobs/{task_id}` |
-| **Circuit Upload** | < 2000ms | POST `/circuits` with IPFS hash |
-| **Proof Request** | < 1500ms | POST `/proofs` to queue job |
-| **Circuit List (10 items)** | < 800ms | GET `/circuits?page_size=10` |
-| **Dashboard Load** | < 2000ms | Full page render (First Contentful Paint) |
-| **Proof Partition** | < 5000ms | Async Celery task (circuit → partitions) |
-| **Proof Dispatch** | < 10000ms | Assign partitions to miners (incl. network latency) |
-| **Proof Verification** | < 30000ms | Cross-validator proof check (p95, depends on partition count) |
+| Operation                   | Target    | Notes                                                         |
+| --------------------------- | --------- | ------------------------------------------------------------- |
+| **Proof Job Status**        | < 500ms   | GET `/proofs/jobs/{task_id}`                                  |
+| **Circuit Upload**          | < 2000ms  | POST `/circuits` with IPFS hash                               |
+| **Proof Request**           | < 1500ms  | POST `/proofs` to queue job                                   |
+| **Circuit List (10 items)** | < 800ms   | GET `/circuits?page_size=10`                                  |
+| **Dashboard Load**          | < 2000ms  | Full page render (First Contentful Paint)                     |
+| **Proof Partition**         | < 5000ms  | Async Celery task (circuit → partitions)                      |
+| **Proof Dispatch**          | < 10000ms | Assign partitions to miners (incl. network latency)           |
+| **Proof Verification**      | < 30000ms | Cross-validator proof check (p95, depends on partition count) |
 
 ## Error Rate SLOs
 
-| Service | Target | Notes |
-|---------|--------|-------|
-| **5xx Server Errors** | < 0.1% | Exclude rate limit 429 responses |
-| **Proof Generation Failures** | < 5% | Timeouts, invalid partitions, offline miners |
-| **IPFS Upload Failures** | < 1% | Transient network issues retried |
-| **Nonce Replay Attacks** | 100% blocked | Zero tolerance; immediate 401 Unauthorized |
+| Service                       | Target       | Notes                                        |
+| ----------------------------- | ------------ | -------------------------------------------- |
+| **5xx Server Errors**         | < 0.1%       | Exclude rate limit 429 responses             |
+| **Proof Generation Failures** | < 5%         | Timeouts, invalid partitions, offline miners |
+| **IPFS Upload Failures**      | < 1%         | Transient network issues retried             |
+| **Nonce Replay Attacks**      | 100% blocked | Zero tolerance; immediate 401 Unauthorized   |
 
 ## Throughput SLOs
 
-| Metric | Target | Notes |
-|--------|--------|-------|
-| **Proof Jobs Processed** | ≥ 1000/day | In steady-state network load |
-| **Circuit Uploads** | ≥ 50/day | Community-contributed circuits |
-| **Bittensor Provers Online** | ≥ 10 | Minimum quorum for consensus |
-| **Proof Partitions per 1 GPU** | ≥ 10/min | Groth16 BN254 baseline on NVIDIA A100 |
+| Metric                         | Target     | Notes                                 |
+| ------------------------------ | ---------- | ------------------------------------- |
+| **Proof Jobs Processed**       | ≥ 1000/day | In steady-state network load          |
+| **Circuit Uploads**            | ≥ 50/day   | Community-contributed circuits        |
+| **Bittensor Provers Online**   | ≥ 10       | Minimum quorum for consensus          |
+| **Proof Partitions per 1 GPU** | ≥ 10/min   | Groth16 BN254 baseline on NVIDIA A100 |
 
 ## Monitoring & Alerting
 
