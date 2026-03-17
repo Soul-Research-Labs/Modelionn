@@ -649,6 +649,96 @@ def apikey_revoke(
     console.print(f"[green]✓[/] API key {key_id} revoked")
 
 
+# ── Webhooks ─────────────────────────────────────────────────
+
+webhook_app = typer.Typer(help="Webhook management")
+app.add_typer(webhook_app, name="webhooks")
+
+
+@webhook_app.command(name="list")
+def webhook_list(
+    registry: str = typer.Option("", "--registry", "-r"),
+    hotkey: str = typer.Option("", "--hotkey", "-k"),
+    output_json: bool = typer.Option(False, "--json"),
+):
+    """List your webhook configurations."""
+    client = _client(registry, hotkey)
+    result = client.list_webhooks()
+    if output_json:
+        _json_output(result)
+        return
+    table = Table(title="Webhooks")
+    table.add_column("ID", justify="right")
+    table.add_column("Label")
+    table.add_column("URL")
+    table.add_column("Events")
+    table.add_column("Active")
+    for wh in result:
+        active = "[green]yes[/]" if wh.get("active") else "[red]no[/]"
+        table.add_row(
+            str(wh.get("id", "")),
+            wh.get("label", ""),
+            wh.get("url", "")[:50],
+            wh.get("events", ""),
+            active,
+        )
+    console.print(table)
+
+
+@webhook_app.command(name="create")
+def webhook_create(
+    url: str = typer.Option(..., "--url", "-u", help="Webhook endpoint URL (HTTPS required)"),
+    label: str = typer.Option(..., "--label", "-l", help="Human-readable label"),
+    events: str = typer.Option("*", "--events", "-e", help="Comma-separated events or * for all"),
+    registry: str = typer.Option("", "--registry", "-r"),
+    hotkey: str = typer.Option("", "--hotkey", "-k"),
+):
+    """Create a new webhook endpoint."""
+    if not url.startswith("https://"):
+        console.print("[red]Error:[/] Webhook URL must use HTTPS")
+        raise typer.Exit(1)
+    client = _client(registry, hotkey)
+    result = client.create_webhook(url=url, label=label, events=events)
+    console.print(f"[green]✓[/] Webhook created — id={result.get('id')}")
+    console.print(f"  URL:    {result.get('url')}")
+    console.print(f"  Events: {result.get('events')}")
+    console.print(f"  Secret: [bold]{result.get('secret', 'N/A')}[/]")
+    console.print("[yellow]Save this secret — it will not be shown again.[/]")
+
+
+@webhook_app.command(name="update")
+def webhook_update(
+    webhook_id: int = typer.Argument(..., help="Webhook ID to update"),
+    url: str | None = typer.Option(None, "--url", "-u"),
+    label: str | None = typer.Option(None, "--label", "-l"),
+    events: str | None = typer.Option(None, "--events", "-e"),
+    active: bool | None = typer.Option(None, "--active/--inactive"),
+    registry: str = typer.Option("", "--registry", "-r"),
+    hotkey: str = typer.Option("", "--hotkey", "-k"),
+):
+    """Update a webhook configuration."""
+    if url is not None and not url.startswith("https://"):
+        console.print("[red]Error:[/] Webhook URL must use HTTPS")
+        raise typer.Exit(1)
+    client = _client(registry, hotkey)
+    result = client.update_webhook(
+        webhook_id, url=url, label=label, events=events, active=active,
+    )
+    console.print(f"[green]✓[/] Webhook {webhook_id} updated")
+
+
+@webhook_app.command(name="delete")
+def webhook_delete(
+    webhook_id: int = typer.Argument(..., help="Webhook ID to delete"),
+    registry: str = typer.Option("", "--registry", "-r"),
+    hotkey: str = typer.Option("", "--hotkey", "-k"),
+):
+    """Delete a webhook configuration."""
+    client = _client(registry, hotkey)
+    client.delete_webhook(webhook_id)
+    console.print(f"[green]✓[/] Webhook {webhook_id} deleted")
+
+
 # ── Audit Logs ──────────────────────────────────────────────
 
 audit_app = typer.Typer(help="Audit log queries")

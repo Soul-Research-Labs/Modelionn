@@ -577,3 +577,61 @@ class ModelionnClient:
                 results[idx] = result
 
         return results  # type: ignore[return-value]
+
+    # ── Webhooks ─────────────────────────────────────────────
+
+    def list_webhooks(self) -> list[dict[str, Any]]:
+        """List webhooks for the authenticated user."""
+        resp = self._request_with_retry(
+            "GET", f"{self._url}/webhooks",
+            headers=self._auth_headers(),
+        )
+        return resp.json()
+
+    def create_webhook(
+        self,
+        *,
+        url: str,
+        label: str,
+        events: str = "*",
+    ) -> dict[str, Any]:
+        """Create a new webhook endpoint."""
+        resp = self._request_with_retry(
+            "POST", f"{self._url}/webhooks",
+            json={"url": url, "label": label, "events": events},
+            headers=self._auth_headers(),
+        )
+        return resp.json()
+
+    def update_webhook(
+        self,
+        webhook_id: int,
+        *,
+        url: str | None = None,
+        label: str | None = None,
+        events: str | None = None,
+        active: bool | None = None,
+    ) -> dict[str, Any]:
+        """Update a webhook configuration."""
+        body: dict[str, Any] = {}
+        if url is not None:
+            body["url"] = url
+        if label is not None:
+            body["label"] = label
+        if events is not None:
+            body["events"] = events
+        if active is not None:
+            body["active"] = active
+        resp = self._request_with_retry(
+            "PATCH", f"{self._url}/webhooks/{webhook_id}",
+            json=body,
+            headers=self._auth_headers(),
+        )
+        return resp.json()
+
+    def delete_webhook(self, webhook_id: int) -> None:
+        """Delete a webhook configuration."""
+        self._request_with_retry(
+            "DELETE", f"{self._url}/webhooks/{webhook_id}",
+            headers=self._auth_headers(),
+        )
