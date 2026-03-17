@@ -14,7 +14,7 @@ from registry.tasks.celery_app import app
 
 logger = logging.getLogger(__name__)
 
-_DISPATCH_LOCK_TTL_SECONDS = 600
+_DISPATCH_LOCK_TTL_SECONDS = 360
 
 
 def _build_cumulative_weights(scores: list[float]) -> list[float]:
@@ -111,13 +111,12 @@ async def _dispatch_with_lock(task, job_id: int) -> dict:
         return {"status": "skipped_idempotent", "job_id": job_id}
 
     try:
-        result = await _dispatch_async(task, job_id)
-        if result.get("status") != "dispatched":
-            await _release_dispatch_lock(redis_client, lock_key, lock_token)
-        return result
+        return await _dispatch_async(task, job_id)
     except Exception:
-        await _release_dispatch_lock(redis_client, lock_key, lock_token)
+        logger.warning("Proof job %d dispatch failed while lock was held", job_id, exc_info=True)
         raise
+    finally:
+        await _release_dispatch_lock(redis_client, lock_key, lock_token)
 
 
 async def _timeout_job(job_id: int, error: str) -> None:
