@@ -1,3 +1,9 @@
+"""Shared base64 helpers for registry/core modules.
+
+This module is intentionally registry-scoped. Prover-side Python bindings do not
+carry a parallel encoding helper to avoid duplicate implementations.
+"""
+
 from __future__ import annotations
 
 import base64
@@ -10,4 +16,4 @@ def toBase64(data: bytes | str) -> str:
 
 def fromBase64(data: str) -> bytes:
     """Safe cross-platform base64 decoding."""
-    return base64.b64decode(data)
+    return base64.b64decode(data, validate=True)
