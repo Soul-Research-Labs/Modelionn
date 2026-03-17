@@ -36,7 +36,7 @@ export default function ProofDetailPage() {
   // SSE: real-time updates while job is in progress
   const isTerminal =
     job?.status && ["completed", "failed", "timeout"].includes(job.status);
-  const { job: sseJob } = useProofJobSSE(!isTerminal ? taskId : undefined);
+  const { job: sseJob, isConnected: sseConnected } = useProofJobSSE(!isTerminal ? taskId : undefined);
 
   if (isLoading) {
     return (
@@ -97,12 +97,20 @@ export default function ProofDetailPage() {
             Created {timeAgo(liveJob.created_at)}
           </p>
         </div>
-        <Badge
-          variant={STATUS_VARIANTS[liveJob.status] || "secondary"}
-          className="text-sm"
-        >
-          {liveJob.status}
-        </Badge>
+        <div className="flex items-center gap-2">
+          {sseConnected && !isTerminal && (
+            <span className="flex items-center gap-1 text-xs text-green-600">
+              <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+              Live
+            </span>
+          )}
+          <Badge
+            variant={STATUS_VARIANTS[liveJob.status] || "secondary"}
+            className="text-sm"
+          >
+            {liveJob.status}
+          </Badge>
+        </div>
       </div>
 
       {/* Stats Grid */}
