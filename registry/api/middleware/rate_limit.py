@@ -29,6 +29,11 @@ EXEMPT_PATHS = {"/health", "/health/ready", "/docs", "/openapi.json", "/redoc", 
 
 _CLEANUP_INTERVAL = 300
 
+# Concurrent connection limit per client (prevents connection exhaustion)
+_MAX_CONCURRENT_PER_CLIENT = 50
+_active_connections: dict[str, int] = defaultdict(int)
+_active_connections_lock = Lock()
+
 # Redis client — lazily initialised
 _redis_client = None
 _redis_init_attempted = False
@@ -151,7 +156,23 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 },
             )
 
-        response = await call_next(request)
+        # Concurrent connection limit — prevent a single client from exhausting
+        # server connections.  Uses a simple in-process counter.
+        with _active_connections_lock:
+            if _active_connections[client_hash] >= _MAX_CONCURRENT_PER_CLIENT:
+                return JSONResponse(
+                    status_code=429,
+                    content={"detail": "Too many concurrent requests. Slow down."},
+                    headers={"Retry-After": "1"},
+                )
+            _active_connections[client_hash] += 1
+
+        try:
+            response = await call_next(request)
+        finally:
+            with _active_connections_lock:
+                _active_connections[client_hash] = max(0, _active_connections[client_hash] - 1)
+
         response.headers["X-RateLimit-Limit"] = str(max_requests)
         response.headers["X-RateLimit-Remaining"] = str(remaining)
         return response
