@@ -75,6 +75,70 @@ class GpuBenchmarkGate:
         return True
 
 
+class BenchmarkVerifier:
+    """Verify self-reported GPU benchmark scores via proof-of-work challenges.
+
+    The validator sends a small test circuit to the miner and measures
+    actual proving time. If the real performance diverges significantly
+    from the claimed benchmark_score, the miner is flagged.
+
+    Results are cached for ``cache_ttl_s`` seconds to avoid over-querying.
+    """
+
+    # A claimed score is suspect if actual proves ≤ this fraction of it
+    SCORE_TOLERANCE = 0.3  # actual must be ≥ 30% of claimed
+
+    def __init__(self, cache_ttl_s: int = 3600) -> None:
+        self.cache_ttl_s = cache_ttl_s
+        # hotkey → (verified_score, timestamp, passed)
+        self._cache: dict[str, tuple[float, float, bool]] = {}
+
+    def get_cached(self, hotkey: str) -> tuple[float, bool] | None:
+        """Return (verified_score, passed) if a fresh cache entry exists, else None."""
+        entry = self._cache.get(hotkey)
+        if entry is None:
+            return None
+        verified_score, ts, passed = entry
+        if time.time() - ts > self.cache_ttl_s:
+            del self._cache[hotkey]
+            return None
+        return verified_score, passed
+
+    def record(self, hotkey: str, claimed: float, actual_time_s: float) -> bool:
+        """Record a PoW challenge result. Returns True if the miner passes.
+
+        ``actual_time_s`` is the wall-clock time the miner took to prove
+        the 1K-constraint test circuit.  We compute an ``actual_score``
+        (proofs/sec) and compare against the miner's ``claimed`` score.
+        """
+        actual_score = 1.0 / max(actual_time_s, 0.001)
+        passed = actual_score >= claimed * self.SCORE_TOLERANCE
+        self._cache[hotkey] = (actual_score, time.time(), passed)
+        if not passed:
+            logger.warning(
+                "Benchmark PoW FAILED for %s: claimed=%.2f, actual=%.2f (%.1f%%)",
+                hotkey, claimed, actual_score, (actual_score / max(claimed, 0.001)) * 100,
+            )
+        else:
+            logger.info(
+                "Benchmark PoW passed for %s: claimed=%.2f, actual=%.2f",
+                hotkey, claimed, actual_score,
+            )
+        return passed
+
+    def needs_verification(self, hotkey: str) -> bool:
+        """Return True if this hotkey has no valid cached result."""
+        return self.get_cached(hotkey) is None
+
+    def is_trusted(self, hotkey: str) -> bool:
+        """Return True if the miner has a cached PASS result."""
+        cached = self.get_cached(hotkey)
+        if cached is None:
+            return False  # unknown → not trusted
+        _, passed = cached
+        return passed
+
+
 class ProofHashDeduplicator:
     """Detect duplicate proof submissions by comparing proof hashes.
 

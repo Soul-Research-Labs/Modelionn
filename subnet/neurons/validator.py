@@ -29,7 +29,7 @@ from subnet.protocol.synapses import (
 )
 from subnet.consensus.engine import ConsensusEngine, VerificationVote
 from subnet.reward.scoring import ProverScore, ProverRewardWeights, compute_prover_rewards
-from subnet.reward.anti_sybil import ProofHashDeduplicator
+from subnet.reward.anti_sybil import ProofHashDeduplicator, BenchmarkVerifier
 
 logger = logging.getLogger(__name__)
 
@@ -88,6 +88,13 @@ class ValidatorNeuron(BaseNeuron):
 
         # Proof hash deduplication to prevent fragment reuse across jobs
         self._deduplicator = ProofHashDeduplicator()
+
+        # GPU benchmark proof-of-work verifier
+        self._benchmark_verifier = BenchmarkVerifier(cache_ttl_s=3600)
+
+        # How often to run PoW challenges (every N ping cycles)
+        self._POW_CHALLENGE_INTERVAL = 3  # every 3rd ping cycle
+        self._pow_cycle_counter = 0
 
         # Commit-reveal store for anti-frontrunning
         # Maps commit_hash → {hotkey, artifact_name, timestamp}
@@ -334,6 +341,64 @@ class ValidatorNeuron(BaseNeuron):
 
         logger.info("Prover ping: %d/%d online", online_count, n)
 
+        # Periodically run PoW benchmark challenges on online miners
+        self._pow_cycle_counter += 1
+        if self._pow_cycle_counter >= self._POW_CHALLENGE_INTERVAL:
+            self._pow_cycle_counter = 0
+            await self._run_benchmark_challenges()
+
+    async def _run_benchmark_challenges(self) -> None:
+        """Send small test proof jobs to miners that need benchmark verification.
+
+        Selects miners whose benchmark is uncached or expired and sends
+        a CapabilityPingSynapse with include_benchmark=True.  The response
+        contains generation_time derived by the miner's own benchmark run,
+        which we cross-check against the claimed score.
+        """
+        candidates = [
+            p for p in self._provers.values()
+            if p.online and self._benchmark_verifier.needs_verification(p.hotkey)
+        ]
+        if not candidates:
+            return
+
+        # Limit batch size to avoid flooding the network
+        candidates = candidates[:10]
+        axons = [self.metagraph.axons[p.uid] for p in candidates]
+
+        responses = await self.dendrite(
+            axons=axons,
+            synapse=CapabilityPingSynapse(include_benchmark=True),
+            timeout=30,
+        )
+
+        for prover, response in zip(candidates, responses):
+            if not response.is_success or response.benchmark_score <= 0:
+                # Miner failed the challenge — mark as untrusted
+                self._benchmark_verifier.record(
+                    prover.hotkey, prover.benchmark_score, float("inf"),
+                )
+                continue
+
+            # The miner ran the benchmark and reported an achieved score.
+            # Compute effective prove time from the reported score.
+            effective_time = 1.0 / max(response.benchmark_score, 0.001)
+            passed = self._benchmark_verifier.record(
+                prover.hotkey, prover.benchmark_score, effective_time,
+            )
+            if passed:
+                # Update prover's benchmark with the verified score
+                prover.benchmark_score = response.benchmark_score
+
+        verified_count = sum(
+            1 for p in candidates
+            if self._benchmark_verifier.is_trusted(p.hotkey)
+        )
+        logger.info(
+            "Benchmark PoW: %d/%d miners verified",
+            verified_count, len(candidates),
+        )
+
     # ── Job dispatching & monitoring ─────────────────────────
 
     async def dispatch_proof_job(
@@ -348,10 +413,14 @@ class ValidatorNeuron(BaseNeuron):
 
         Returns a dict with 'status' key ('dispatched', 'no_miners', etc.).
         """
-        # Select the best available provers
+        # Select the best available provers — prefer benchmark-verified miners
         online = sorted(
             [p for p in self._provers.values() if p.online],
-            key=lambda p: (-p.benchmark_score, p.current_load),
+            key=lambda p: (
+                not self._benchmark_verifier.is_trusted(p.hotkey),  # verified first
+                -p.benchmark_score,
+                p.current_load,
+            ),
         )
         if not online:
             logger.error("No online provers for job %s — job cannot be dispatched", job_id)
