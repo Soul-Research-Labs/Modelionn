@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
+import { makeQueryKey, makePaginatedKey, makeSingleKey } from "@/lib/query-keys";
 
 // ── Health ──────────────────────────────────────────────────
 
@@ -45,7 +46,7 @@ export function useCircuits(params?: {
   page_size?: number;
 }) {
   return useQuery({
-    queryKey: ["circuits", params],
+    queryKey: makePaginatedKey("circuits", params),
     queryFn: () => api.listCircuits(params),
   });
 }
@@ -70,7 +71,7 @@ export function useUploadCircuit() {
 
 export function useProofJobs(params?: { status?: string; page?: number }) {
   return useQuery({
-    queryKey: ["proofJobs", params],
+    queryKey: makePaginatedKey("proofJobs", params),
     queryFn: () => api.listProofJobs(params),
     refetchInterval: 10_000,
   });
@@ -113,7 +114,7 @@ export function useProofs(params?: {
   page?: number;
 }) {
   return useQuery({
-    queryKey: ["proofs", params],
+    queryKey: makePaginatedKey("proofs", params),
     queryFn: () => api.listProofs(params),
   });
 }
@@ -130,7 +131,7 @@ export function useVerifyProof() {
 
 export function useProvers(params?: { online_only?: boolean; page?: number }) {
   return useQuery({
-    queryKey: ["provers", params],
+    queryKey: makePaginatedKey("provers", params),
     queryFn: () => api.listProvers(params),
     refetchInterval: 15_000,
   });
@@ -206,7 +207,7 @@ export function useRemoveOrgMember(slug: string) {
 
 export function useSearchCircuits(q: string, page?: number) {
   return useQuery({
-    queryKey: ["searchCircuits", q, page],
+    queryKey: makePaginatedKey("searchCircuits", { q, page: page || 1 }),
     queryFn: () => api.searchCircuits({ q, page }),
     enabled: q.length > 0,
   });
