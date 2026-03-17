@@ -277,3 +277,41 @@ class ConsensusEngine:
 
     def get_all_validators(self) -> list[ValidatorState]:
         return list(self._validators.values())
+
+    def get_slashed_validators(self) -> list[ValidatorState]:
+        """Return all validators currently in slashed state."""
+        return [v for v in self._validators.values() if v.slashed]
+
+    def try_unslash(self, hotkey: str, min_reliability: float = 0.85) -> bool:
+        """Attempt to un-slash a validator whose reliability has recovered.
+
+        Returns True if the validator was un-slashed.
+        """
+        state = self._validators.get(hotkey)
+        if not state or not state.slashed:
+            return False
+        if state.reliability_score >= min_reliability and len(state.recent_results) >= DIVERGENCE_WINDOW:
+            state.slashed = False
+            logger.info(
+                "Validator %s un-slashed (reliability=%.2f, threshold=%.2f)",
+                hotkey, state.reliability_score, min_reliability,
+            )
+            return True
+        return False
+
+    def get_stats(self) -> dict:
+        """Return consensus engine statistics for monitoring."""
+        validators = list(self._validators.values())
+        return {
+            "total_validators": len(validators),
+            "active_validators": sum(
+                1 for v in validators
+                if time.monotonic() - v.last_active < VALIDATOR_EVICTION_SECONDS
+            ),
+            "slashed_validators": sum(1 for v in validators if v.slashed),
+            "pending_vote_sets": len(self._pending_votes),
+            "avg_reliability": (
+                sum(v.reliability_score for v in validators) / len(validators)
+                if validators else 0.0
+            ),
+        }
