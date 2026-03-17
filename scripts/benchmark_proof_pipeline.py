@@ -19,6 +19,7 @@ Auth (optional):
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import statistics
 import sys
@@ -36,6 +37,42 @@ class JobResult:
     task_id: str
     status: str
     latency_s: float
+
+
+def _build_summary(results: list[JobResult]) -> dict[str, Any]:
+    latencies = [r.latency_s for r in results]
+    completed = [r for r in results if r.status == "completed"]
+    failed = [r for r in results if r.status in {"failed", "timeout", "cancelled"}]
+
+    return {
+        "jobs_total": len(results),
+        "jobs_completed": len(completed),
+        "jobs_failed": len(failed),
+        "failure_rate": (len(failed) / len(results)) if results else 0.0,
+        "latency_avg_s": statistics.fmean(latencies) if latencies else 0.0,
+        "latency_p50_s": _percentile(latencies, 50),
+        "latency_p95_s": _percentile(latencies, 95),
+        "latency_p99_s": _percentile(latencies, 99),
+        "results": [
+            {"task_id": r.task_id, "status": r.status, "latency_s": round(r.latency_s, 3)}
+            for r in results
+        ],
+    }
+
+
+def _emit_summary(summary: dict[str, Any], output_format: str) -> None:
+    if output_format == "json":
+        print(json.dumps(summary, indent=2, sort_keys=True))
+        return
+
+    print("\n==> Proof pipeline benchmark summary")
+    for key, value in summary.items():
+        if key == "results":
+            continue
+        if isinstance(value, float):
+            print(f"{key}: {value:.3f}")
+        else:
+            print(f"{key}: {value}")
 
 
 def _headers() -> dict[str, str]:
@@ -145,28 +182,13 @@ def run(args: argparse.Namespace) -> int:
                 f"[{i}/{len(task_ids)}] {task_id} -> {result.status} in {result.latency_s:.2f}s"
             )
 
-    latencies = [r.latency_s for r in results]
-    completed = [r for r in results if r.status == "completed"]
-    failed = [r for r in results if r.status in {"failed", "timeout", "cancelled"}]
+    summary = _build_summary(results)
+    _emit_summary(summary, args.format)
 
-    summary: dict[str, Any] = {
-        "jobs_total": len(results),
-        "jobs_completed": len(completed),
-        "jobs_failed": len(failed),
-        "latency_avg_s": statistics.fmean(latencies) if latencies else 0.0,
-        "latency_p50_s": _percentile(latencies, 50),
-        "latency_p95_s": _percentile(latencies, 95),
-        "latency_p99_s": _percentile(latencies, 99),
-    }
+    if args.max_p95_s is not None and summary["latency_p95_s"] > args.max_p95_s:
+        return 3
 
-    print("\n==> Proof pipeline benchmark summary")
-    for key, value in summary.items():
-        if isinstance(value, float):
-            print(f"{key}: {value:.3f}")
-        else:
-            print(f"{key}: {value}")
-
-    return 0 if len(failed) == 0 else 2
+    return 0 if summary["jobs_failed"] == 0 else 2
 
 
 def parse_args() -> argparse.Namespace:
@@ -177,6 +199,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--jobs", type=int, default=5)
     parser.add_argument("--poll-interval", type=float, default=1.0)
     parser.add_argument("--timeout", type=float, default=300.0)
+    parser.add_argument("--format", choices=["text", "json"], default="text")
+    parser.add_argument("--max-p95-s", type=float)
     return parser.parse_args()
 
 

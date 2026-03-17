@@ -12,7 +12,7 @@ import os
 import random
 import time
 
-from locust import HttpUser, between, task
+from locust import HttpUser, LoadTestShape, between, task
 
 
 # ── Helper ──────────────────────────────────────────────────
@@ -212,3 +212,20 @@ class AdminUser(HttpUser):
         ) as resp:
             if resp.status_code in (401, 403):
                 resp.success()
+
+class SpikeLoadShape(LoadTestShape):
+    """Spike and cooldown profile for proof API load testing."""
+
+    stages = [
+        {"duration": 60, "users": 10, "spawn_rate": 2},     # Warm-up
+        {"duration": 120, "users": 50, "spawn_rate": 10},   # Spike
+        {"duration": 240, "users": 20, "spawn_rate": 5},    # Sustained
+        {"duration": 300, "users": 0, "spawn_rate": 5},     # Cool-down
+    ]
+
+    def tick(self):
+        run_time = self.get_run_time()
+        for stage in self.stages:
+            if run_time < stage["duration"]:
+                return stage["users"], stage["spawn_rate"]
+        return None
