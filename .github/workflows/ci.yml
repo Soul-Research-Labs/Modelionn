@@ -206,6 +206,74 @@ jobs:
       - name: Run tests
         run: cargo test --all-features
 
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+
+      - name: Supply-chain audit
+        run: cargo audit
+
+  load-smoke:
+    runs-on: ubuntu-latest
+    needs: [test, docker]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Start services
+        run: docker compose up -d --build --wait
+        timeout-minutes: 5
+
+      - name: Smoke load test (10 concurrent users, 30s)
+        run: |
+          python -c "
+          import asyncio, httpx, time, sys
+
+          async def run():
+              async with httpx.AsyncClient(base_url='http://localhost:8000') as c:
+                  results = []
+                  async def hit():
+                      t0 = time.monotonic()
+                      r = await c.get('/health')
+                      elapsed = time.monotonic() - t0
+                      results.append((r.status_code, elapsed))
+
+                  end = time.monotonic() + 30
+                  while time.monotonic() < end:
+                      await asyncio.gather(*(hit() for _ in range(10)))
+                      await asyncio.sleep(0.1)
+
+                  ok = sum(1 for s,_ in results if s == 200)
+                  total = len(results)
+                  times = sorted(e for _,e in results)
+                  p95 = times[int(len(times)*0.95)] if times else 0
+                  print(f'Requests: {total}, OK: {ok}, Errors: {total-ok}, P95: {p95:.3f}s')
+                  if ok / total < 0.99:
+                      print(f'FAIL: success rate {ok/total:.1%} < 99%')
+                      sys.exit(1)
+                  if p95 > 1.0:
+                      print(f'FAIL: P95 {p95:.3f}s > 1.0s')
+                      sys.exit(1)
+                  print('PASS')
+
+          asyncio.run(run())
+          "
+
+      - name: Stop services
+        if: always()
+        run: docker compose down -v
+
   web:
     runs-on: ubuntu-latest
     defaults:

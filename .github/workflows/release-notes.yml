@@ -1,0 +1,56 @@
+name: Release Notes
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release-notes:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate release notes
+        id: notes
+        run: |
+          PREV_TAG=$(git tag --sort=-creatordate | sed -n '2p')
+          if [ -z "$PREV_TAG" ]; then
+            PREV_TAG=$(git rev-list --max-parents=0 HEAD)
+          fi
+          echo "## What's Changed" > /tmp/notes.md
+          echo "" >> /tmp/notes.md
+
+          # Group commits by type
+          for prefix in feat fix docs chore perf refactor test ci; do
+            commits=$(git log "${PREV_TAG}..HEAD" --pretty="format:- %s (%h)" --grep="^${prefix}" 2>/dev/null || true)
+            if [ -n "$commits" ]; then
+              case $prefix in
+                feat)     label="Features" ;;
+                fix)      label="Bug Fixes" ;;
+                docs)     label="Documentation" ;;
+                chore)    label="Maintenance" ;;
+                perf)     label="Performance" ;;
+                refactor) label="Refactoring" ;;
+                test)     label="Testing" ;;
+                ci)       label="CI/CD" ;;
+              esac
+              echo "### ${label}" >> /tmp/notes.md
+              echo "$commits" >> /tmp/notes.md
+              echo "" >> /tmp/notes.md
+            fi
+          done
+
+          echo "**Full Changelog**: \`${PREV_TAG}...${GITHUB_REF_NAME}\`" >> /tmp/notes.md
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: /tmp/notes.md
+          generate_release_notes: false
