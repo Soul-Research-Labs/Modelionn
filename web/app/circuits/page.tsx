@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCircuits, useUploadCircuit } from "@/lib/api";
+import { circuitUploadSchema } from "@/lib/validation";
 import { formatNumber } from "@/lib/utils";
 import { Cpu, Upload, X } from "lucide-react";
 import Link from "next/link";
@@ -121,24 +122,39 @@ function UploadCircuitModal({ onClose }: { onClose: () => void }) {
     verification_key_cid: "",
     publisher_hotkey: "",
   });
+  const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
 
   const update = (field: string, value: string) =>
     setForm((prev) => ({ ...prev, [field]: value }));
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    const payload = {
+      name: form.name.trim(),
+      version: form.version.trim(),
+      proof_type: form.proof_type as "groth16" | "plonk" | "halo2" | "stark",
+      circuit_type: form.circuit_type as "general" | "evm" | "zkml" | "custom",
+      num_constraints: Number(form.num_constraints),
+      data_cid: form.data_cid.trim(),
+      proving_key_cid: form.proving_key_cid.trim() || undefined,
+      verification_key_cid: form.verification_key_cid.trim() || undefined,
+      publisher_hotkey: form.publisher_hotkey.trim(),
+    };
+    const validation = circuitUploadSchema.safeParse(payload);
+    if (!validation.success) {
+      const errors: { [key: string]: string } = {};
+      validation.error.issues.forEach((issue) => {
+        const path = issue.path.join(".");
+        errors[path] = issue.message;
+      });
+      setFormErrors(errors);
+      return;
+    }
+
+    setFormErrors({});
     uploadCircuit.mutate(
-      {
-        name: form.name,
-        version: form.version,
-        proof_type: form.proof_type,
-        circuit_type: form.circuit_type,
-        num_constraints: Number(form.num_constraints),
-        data_cid: form.data_cid,
-        proving_key_cid: form.proving_key_cid || undefined,
-        verification_key_cid: form.verification_key_cid || undefined,
-        publisher_hotkey: form.publisher_hotkey,
-      },
+      payload,
       { onSuccess: onClose },
     );
   };
@@ -172,6 +188,9 @@ function UploadCircuitModal({ onClose }: { onClose: () => void }) {
                   placeholder="my-circuit"
                   className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
                 />
+                {formErrors.name && (
+                  <p className="mt-1 text-xs text-red-600">{formErrors.name}</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -184,6 +203,9 @@ function UploadCircuitModal({ onClose }: { onClose: () => void }) {
                   onChange={(e) => update("version", e.target.value)}
                   className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
                 />
+                {formErrors.version && (
+                  <p className="mt-1 text-xs text-red-600">{formErrors.version}</p>
+                )}
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -231,6 +253,9 @@ function UploadCircuitModal({ onClose }: { onClose: () => void }) {
                 placeholder="1000000"
                 className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
               />
+              {formErrors.num_constraints && (
+                <p className="mt-1 text-xs text-red-600">{formErrors.num_constraints}</p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -244,6 +269,9 @@ function UploadCircuitModal({ onClose }: { onClose: () => void }) {
                 placeholder="QmXyz..."
                 className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500"
               />
+              {formErrors.data_cid && (
+                <p className="mt-1 text-xs text-red-600">{formErrors.data_cid}</p>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -258,6 +286,9 @@ function UploadCircuitModal({ onClose }: { onClose: () => void }) {
                   placeholder="QmXyz..."
                   className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500"
                 />
+                {formErrors.proving_key_cid && (
+                  <p className="mt-1 text-xs text-red-600">{formErrors.proving_key_cid}</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -273,6 +304,9 @@ function UploadCircuitModal({ onClose }: { onClose: () => void }) {
                   placeholder="QmXyz..."
                   className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500"
                 />
+                {formErrors.verification_key_cid && (
+                  <p className="mt-1 text-xs text-red-600">{formErrors.verification_key_cid}</p>
+                )}
               </div>
             </div>
             <div>
@@ -287,6 +321,9 @@ function UploadCircuitModal({ onClose }: { onClose: () => void }) {
                 placeholder="5..."
                 className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500"
               />
+              {formErrors.publisher_hotkey && (
+                <p className="mt-1 text-xs text-red-600">{formErrors.publisher_hotkey}</p>
+              )}
             </div>
             <div className="flex gap-3 pt-2">
               <Button type="submit" disabled={uploadCircuit.isPending}>

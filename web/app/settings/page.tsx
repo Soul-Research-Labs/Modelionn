@@ -249,16 +249,16 @@ export default function SettingsPage() {
                   value={newKeyLimit}
                   onChange={(e) =>
                     setNewKeyLimit(
-                      Math.max(1, Math.min(100000, Number(e.target.value))),
+                      Math.max(1, Math.min(1000000, Number(e.target.value))),
                     )
                   }
                   min={1}
                   max={1000000}
                   className="w-32 rounded-md border px-3 py-1.5 text-sm"
-                                {apiKeyErrors.daily_limit && (
-                                  <p className="text-xs text-red-500 mt-1">{apiKeyErrors.daily_limit}</p>
-                                )}
                 />
+                {apiKeyErrors.daily_limit && (
+                  <p className="text-xs text-red-500 mt-1">{apiKeyErrors.daily_limit}</p>
+                )}
               </div>
               <Button
                 size="sm"
@@ -378,10 +378,10 @@ export default function SettingsPage() {
                   placeholder="https://example.com/webhook"
                   className="w-full rounded-md border px-3 py-1.5 text-sm"
                   maxLength={2048}
-                                {webhookErrors.url && (
-                                  <p className="text-xs text-red-500 mt-1">{webhookErrors.url}</p>
-                                )}
                 />
+                {webhookErrors.url && (
+                  <p className="text-xs text-red-500 mt-1">{webhookErrors.url}</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Label</label>
@@ -392,10 +392,10 @@ export default function SettingsPage() {
                   placeholder="e.g. Slack notifications"
                   className="w-full rounded-md border px-3 py-1.5 text-sm"
                   maxLength={256}
-                                {webhookErrors.label && (
-                                  <p className="text-xs text-red-500 mt-1">{webhookErrors.label}</p>
-                                )}
                 />
+                {webhookErrors.label && (
+                  <p className="text-xs text-red-500 mt-1">{webhookErrors.label}</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Events</label>
@@ -413,11 +413,11 @@ export default function SettingsPage() {
                     >
                       {evt.label}
                     </button>
-                                  {webhookErrors.events && (
-                                    <p className="text-xs text-red-500 mt-1">{webhookErrors.events}</p>
-                                  )}
                   ))}
                 </div>
+                {webhookErrors.events && (
+                  <p className="text-xs text-red-500 mt-1">{webhookErrors.events}</p>
+                )}
               </div>
               <Button
                 size="sm"

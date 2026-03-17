@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useMyOrgs, useCreateOrg } from "@/lib/api";
+import { orgFormSchema } from "@/lib/validation";
 import { Building2, Plus, ArrowRight } from "lucide-react";
 
 export default function OrganizationsPage() {
@@ -18,6 +19,7 @@ export default function OrganizationsPage() {
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
+  const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
 
   if (status === "unauthenticated") {
     router.push("/auth/signin");
@@ -25,14 +27,27 @@ export default function OrganizationsPage() {
   }
 
   const handleCreate = () => {
-    if (!name.trim() || !slug.trim()) return;
+    const payload = { name: name.trim(), slug: slug.trim() };
+    const validation = orgFormSchema.safeParse(payload);
+    if (!validation.success) {
+      const errors: { [key: string]: string } = {};
+      validation.error.issues.forEach((issue) => {
+        const path = issue.path.join(".");
+        errors[path] = issue.message;
+      });
+      setFormErrors(errors);
+      return;
+    }
+
+    setFormErrors({});
     createOrg.mutate(
-      { name: name.trim(), slug: slug.trim() },
+      payload,
       {
         onSuccess: () => {
           setShowForm(false);
           setName("");
           setSlug("");
+          setFormErrors({});
         },
       },
     );
@@ -84,6 +99,9 @@ export default function OrganizationsPage() {
                 className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:ring-brand-500"
                 placeholder="My Organization"
               />
+              {formErrors.name && (
+                <p className="mt-1 text-xs text-red-600">{formErrors.name}</p>
+              )}
             </div>
             <div>
               <label
@@ -100,6 +118,9 @@ export default function OrganizationsPage() {
                 className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:ring-brand-500"
                 placeholder="my-organization"
               />
+              {formErrors.slug && (
+                <p className="mt-1 text-xs text-red-600">{formErrors.slug}</p>
+              )}
               <p className="mt-1 text-xs text-gray-400">
                 Lowercase letters, numbers, and hyphens only.
               </p>

@@ -28,6 +28,32 @@ export const evalFormSchema = z.object({
   submitter_hotkey: ss58Hotkey,
 });
 
+const ipfsCid = z
+  .string()
+  .min(1, "CID is required")
+  .regex(/^(Qm[1-9A-HJ-NP-Za-km-z]{44}|bafy[a-z0-9]+)$/i, "Invalid IPFS CID");
+
+export const orgFormSchema = z.object({
+  name: z.string().min(1, "Organization name is required").max(256, "Name too long"),
+  slug: z
+    .string()
+    .min(1, "Slug is required")
+    .max(128, "Slug too long")
+    .regex(/^[a-z0-9-]+$/, "Slug must contain lowercase letters, numbers, and hyphens only"),
+});
+
+export const circuitUploadSchema = z.object({
+  name: artifactName,
+  version,
+  proof_type: z.enum(["groth16", "plonk", "halo2", "stark"]),
+  circuit_type: z.enum(["general", "evm", "zkml", "custom"]),
+  num_constraints: z.number().int("Constraints must be a whole number").positive("Constraints must be greater than zero"),
+  data_cid: ipfsCid,
+  proving_key_cid: ipfsCid.optional(),
+  verification_key_cid: ipfsCid.optional(),
+  publisher_hotkey: ss58Hotkey,
+});
+
 export const webhookFormSchema = z.object({
   url: z
     .string()
@@ -74,6 +100,8 @@ export const searchFormSchema = z.object({
 });
 
 export type EvalFormData = z.infer<typeof evalFormSchema>;
+export type OrgFormData = z.infer<typeof orgFormSchema>;
+export type CircuitUploadData = z.infer<typeof circuitUploadSchema>;
 export type WebhookFormData = z.infer<typeof webhookFormSchema>;
 export type NotificationFormData = z.infer<typeof notificationFormSchema>;
 export type SearchFormData = z.infer<typeof searchFormSchema>;

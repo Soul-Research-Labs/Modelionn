@@ -7,9 +7,8 @@
 
 /** Normalize object keys alphabetically for deterministic stringification. */
 function normalizeParams(
-  params: Record<string, any> | undefined,
-): Record<string, any> | undefined {
-  if (!params) return undefined;
+  params: Record<string, any>,
+): Record<string, any> {
 
   const normalized: Record<string, any> = {};
   const keys = Object.keys(params).sort();
