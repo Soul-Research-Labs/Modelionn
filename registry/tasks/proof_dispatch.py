@@ -92,10 +92,10 @@ def _should_skip_dispatch(job) -> bool:
 
 
 @app.task(bind=True, name="registry.tasks.proof_dispatch.dispatch_proof_job", max_retries=2, soft_time_limit=300, time_limit=360)
-def dispatch_proof_job(self, job_id: int) -> dict:
+def dispatch_proof_job(self, job_id: int, request_id: str | None = None) -> dict:
     """Main proof dispatch task that partitions a circuit and routes it to provers."""
     try:
-        return asyncio.run(_dispatch_with_lock(self, job_id))
+        return asyncio.run(_dispatch_with_lock(self, job_id, request_id))
     except Exception as exc:
         try:
             asyncio.run(_timeout_job(job_id, str(exc)))
@@ -104,16 +104,21 @@ def dispatch_proof_job(self, job_id: int) -> dict:
         raise
 
 
-async def _dispatch_with_lock(task, job_id: int) -> dict:
+async def _dispatch_with_lock(task, job_id: int, request_id: str | None = None) -> dict:
     redis_client, lock_key, lock_token, acquired = await _acquire_dispatch_lock(job_id)
     if not acquired:
-        logger.info("Proof job %d dispatch already in progress", job_id)
+        logger.info("Proof job %d dispatch already in progress request_id=%s", job_id, request_id or "")
         return {"status": "skipped_idempotent", "job_id": job_id}
 
     try:
-        return await _dispatch_async(task, job_id)
+        return await _dispatch_async(task, job_id, request_id)
     except Exception:
-        logger.warning("Proof job %d dispatch failed while lock was held", job_id, exc_info=True)
+        logger.warning(
+            "Proof job %d dispatch failed while lock was held request_id=%s",
+            job_id,
+            request_id or "",
+            exc_info=True,
+        )
         raise
     finally:
         await _release_dispatch_lock(redis_client, lock_key, lock_token)
@@ -136,7 +141,7 @@ async def _timeout_job(job_id: int, error: str) -> None:
             await db.commit()
 
 
-async def _dispatch_async(task, job_id: int) -> dict:
+async def _dispatch_async(task, job_id: int, request_id: str | None = None) -> dict:
     """Async inner dispatch logic."""
     from sqlalchemy import select
     from registry.core.deps import async_session
@@ -246,8 +251,12 @@ async def _dispatch_async(task, job_id: int) -> dict:
             # This task monitors completion status
 
             logger.info(
-                "Proof job %d dispatched: circuit=%s partitions=%d provers=%d",
-                job_id, circuit.name, num_partitions, len(provers),
+                "Proof job %d dispatched: circuit=%s partitions=%d provers=%d request_id=%s",
+                job_id,
+                circuit.name,
+                num_partitions,
+                len(provers),
+                request_id or "",
             )
 
             return {
@@ -255,6 +264,7 @@ async def _dispatch_async(task, job_id: int) -> dict:
                 "task_id": job.task_id,
                 "status": "dispatched",
                 "partitions": num_partitions,
+                "request_id": request_id,
             }
 
         except Exception as exc:

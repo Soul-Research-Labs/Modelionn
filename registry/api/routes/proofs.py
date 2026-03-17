@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from registry.core.config import settings
 from registry.core.deps import get_db
 from registry.core.security import verify_publisher
+from registry.api.middleware.request_id import request_id_ctx
 from registry.models.database import (
     CircuitRow,
     ProofJobRow,
@@ -230,7 +231,7 @@ async def request_proof(
     # Dispatch to Celery
     try:
         from registry.tasks.proof_dispatch import dispatch_proof_job
-        dispatch_proof_job.delay(row.id)
+        dispatch_proof_job.delay(row.id, request_id_ctx.get())
     except Exception as exc:
         logger.warning("Celery unavailable for proof dispatch: %s", exc)
 
