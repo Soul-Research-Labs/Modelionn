@@ -146,4 +146,8 @@ async def readiness() -> dict[str, str | bool]:
         checks["ipfs"] = False
         checks["status"] = "degraded"
 
+    if checks["status"] == "degraded":
+        import fastapi
+        raise fastapi.HTTPException(status_code=503, detail=checks)
+
     return checks

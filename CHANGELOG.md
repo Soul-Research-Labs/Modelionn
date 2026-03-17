@@ -91,7 +91,7 @@ All notable changes to Modelionn are documented in this file.
 - README operational guides table formatting normalized for readability
 - Operational runbooks normalized with trailing newlines for cleaner diffs/tooling consistency
 
-## [Unreleased]
+## [Backlog (Pre-0.2)]
 
 ### Added
 

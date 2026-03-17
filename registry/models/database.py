@@ -6,6 +6,7 @@ import enum
 from datetime import datetime, timezone
 
 from sqlalchemy import Boolean, DateTime, Enum, Float, ForeignKey, Index, Integer, String, Text, func
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -211,6 +212,14 @@ class CircuitRow(Base):
 
     __tablename__ = "circuits"
 
+    @hybrid_property
+    def active(self) -> bool:
+        return self.deleted_at is None
+
+    @active.expression
+    def active(cls):
+        return cls.deleted_at.is_(None)
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     circuit_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, index=True)
     name: Mapped[str] = mapped_column(String(256), nullable=False)
@@ -256,6 +265,14 @@ class ProofRow(Base):
 
     __tablename__ = "proofs"
 
+    @hybrid_property
+    def active(self) -> bool:
+        return self.deleted_at is None
+
+    @active.expression
+    def active(cls):
+        return cls.deleted_at.is_(None)
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     proof_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, index=True)
     circuit_id: Mapped[int] = mapped_column(Integer, ForeignKey("circuits.id"), nullable=False, index=True)
@@ -293,7 +310,7 @@ class ProofJobRow(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     task_id: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, index=True)
-    circuit_id: Mapped[int] = mapped_column(Integer, ForeignKey("circuits.id"), nullable=False, index=True)
+    circuit_id: Mapped[int] = mapped_column(Integer, ForeignKey("circuits.id", ondelete="CASCADE"), nullable=False, index=True)
     requester_hotkey: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
     status: Mapped[str] = mapped_column(
         Enum(ProofJobStatus), nullable=False, default=ProofJobStatus.QUEUED, index=True

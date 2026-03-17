@@ -201,6 +201,11 @@ class ConsensusEngine:
             else:
                 invalid_stake += v_stake
 
+        # Check total stake of all assigned validators
+        network_total_stake = sum(stake_map.values()) if stakes else total_stake
+        if total_stake < CONSENSUS_THRESHOLD * network_total_stake:
+            return None
+
         # Majority wins
         consensus_valid = valid_stake >= invalid_stake
         majority_stake = valid_stake if consensus_valid else invalid_stake

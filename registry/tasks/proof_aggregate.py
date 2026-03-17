@@ -76,6 +76,7 @@ async def _aggregate_sweep(task) -> dict:
                 select(ProofJobRow).where(
                     ProofJobRow.status == ProofJobStatus.PROVING
                 )
+                .with_for_update(skip_locked=True)
             )
         ).scalars().all()
 

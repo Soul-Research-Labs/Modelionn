@@ -13,7 +13,7 @@ from fastapi import Header, HTTPException, status
 logger = logging.getLogger(__name__)
 
 # Signature validity window (seconds)
-_MAX_AGE = 300
+_MAX_AGE = 30
 
 # ── Nonce replay prevention ─────────────────────────────────
 # Uses Redis when available for distributed dedup across workers;

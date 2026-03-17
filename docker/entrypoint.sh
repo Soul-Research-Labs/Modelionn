@@ -12,4 +12,27 @@ if [ "${MODELIONN_ENV:-development}" = "production" ]; then
   : "${FLOWER_PASSWORD:?FLOWER_PASSWORD must be set in production (Celery Flower dashboard)}"
 fi
 
-exec "$@"
+# Graceful shutdown handler
+_term() {
+  echo "Caught SIGTERM/SIGINT block!"
+  if [ -n "$CHILD_PID" ]; then
+    kill -TERM "$CHILD_PID" 2>/dev/null
+    wait "$CHILD_PID"
+  fi
+  exit 0
+}
+
+trap _term SIGTERM SIGINT
+
+# Default CORS handling validation
+if [ "${MODELIONN_ENV:-development}" = "production" ]; then
+  if echo "$CORS_ORIGINS" | grep -q 'http://'; then
+    echo "ERROR: CORS_ORIGINS must not contain http:// in production!"
+    exit 1
+  fi
+fi
+
+# Run the command in background to catch signals
+"$@" &
+CHILD_PID=$!
+wait "$CHILD_PID"
