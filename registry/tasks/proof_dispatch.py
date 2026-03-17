@@ -221,6 +221,22 @@ async def _dispatch_async(task, job_id: int, request_id: str | None = None) -> d
                 await _fail_job(db, job, "No online provers available")
                 return {"error": "no provers"}
 
+            # Filter provers through anti-sybil gates
+            from subnet.reward.anti_sybil import StakeGate, GpuBenchmarkGate
+            stake_gate = StakeGate()
+            gpu_gate = GpuBenchmarkGate()
+            qualified_provers = [
+                p for p in provers
+                if gpu_gate.check(float(p.benchmark_score or 0.0), p.hotkey)
+            ]
+            if not qualified_provers:
+                # Fallback: use all online provers if none pass GPU gate
+                logger.warning(
+                    "No provers pass GPU benchmark gate for job %d; using all %d online provers",
+                    job_id, len(provers),
+                )
+                qualified_provers = provers
+
             # Lock partitions for assignment to prevent races
             partitions = (await db.execute(
                 select(CircuitPartitionRow)
@@ -229,13 +245,37 @@ async def _dispatch_async(task, job_id: int, request_id: str | None = None) -> d
                 .with_for_update()
             )).scalars().all()
 
-            # Weighted selection by benchmark score to avoid overloading slower provers.
-            cumulative_weights = _build_cumulative_weights([
-                float(p.benchmark_score or 0.0) for p in provers
-            ])
+            # Load-aware weighted selection: effective_weight = benchmark * (1 - current_load)
+            # This prevents overloading slower or busier provers.
+            effective_scores = []
+            for p in qualified_provers:
+                benchmark = float(p.benchmark_score or 0.0)
+                load = float(getattr(p, "current_load", 0.0) or 0.0)
+                load = min(max(load, 0.0), 1.0)
+                effective_scores.append(benchmark * (1.0 - load * 0.8))
 
+            cumulative_weights = _build_cumulative_weights(effective_scores)
+
+            # Track assignments to avoid assigning same partition to same prover
+            # when redundancy > 1.
+            assigned_per_partition: dict[int, set[str]] = {}
             for i, partition in enumerate(partitions):
-                prover = provers[_pick_weighted_index(i, cumulative_weights)]
+                pidx = partition.partition_index
+                assigned_per_partition.setdefault(pidx, set())
+
+                # Pick a prover, avoiding duplicates for redundancy
+                prover_idx = _pick_weighted_index(i, cumulative_weights)
+                prover = qualified_provers[prover_idx]
+
+                if prover.hotkey in assigned_per_partition[pidx] and len(qualified_provers) > 1:
+                    # Try next provers to find a non-duplicate
+                    for offset in range(1, len(qualified_provers)):
+                        alt_idx = (prover_idx + offset) % len(qualified_provers)
+                        if qualified_provers[alt_idx].hotkey not in assigned_per_partition[pidx]:
+                            prover = qualified_provers[alt_idx]
+                            break
+
+                assigned_per_partition[pidx].add(prover.hotkey)
                 partition.assigned_prover = prover.hotkey
                 partition.status = "assigned"
                 partition.assigned_at = datetime.now(timezone.utc)
