@@ -99,6 +99,81 @@ groups:
           summary: "Proof job queue depth is high"
           description: "More than 100 proof jobs are queued — possibly insufficient prover capacity."
 
+      - alert: DBPoolSaturation
+        expr: >
+          modelionn_db_pool_checked_out /
+          modelionn_db_pool_size > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Database connection pool near saturation"
+          description: "More than 85% of DB pool connections are checked out — increase pool size or investigate long-running queries."
+
+      - alert: DBPoolExhausted
+        expr: modelionn_db_pool_overflow > 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Database connection pool exhausted (overflow in use)"
+          description: "All pool connections are in use and overflow connections have been created."
+
+      - alert: RedisMemoryHigh
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.80
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis memory usage above 80%"
+          description: "Redis is approaching its memory limit — consider evicting keys or scaling."
+
+      - alert: RedisMemoryCritical
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.95
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis memory usage above 95%"
+          description: "Redis is nearly out of memory — OOM kills are imminent."
+
+      - alert: CeleryWorkerStalled
+        expr: >
+          time() - celery_worker_last_heartbeat_timestamp > 300
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Celery worker has not sent a heartbeat in 5 minutes"
+          description: "A Celery worker appears stalled or deadlocked — check for blocking tasks."
+
+      - alert: CeleryTaskBacklog
+        expr: celery_active_tasks + celery_reserved_tasks > 500
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Celery task backlog growing"
+          description: "More than 500 tasks are active or reserved — workers may be overloaded."
+
+      - alert: GPUTemperatureHigh
+        expr: nvidia_gpu_temperature_celsius > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "GPU temperature above 85°C"
+          description: "GPU {{ $labels.gpu }} on {{ $labels.instance }} is running hot — risk of thermal throttling."
+
+      - alert: GPUUtilizationLow
+        expr: nvidia_gpu_utilization_percent < 10 and modelionn_proof_jobs_queued > 5
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "GPU underutilized while jobs are queued"
+          description: "GPU {{ $labels.gpu }} is idle despite proof job backlog — check prover assignment."
+
       - alert: ProofP99LatencyHigh
         expr: >
           histogram_quantile(0.99, rate(modelionn_proof_latency_seconds_bucket[10m])) > 300

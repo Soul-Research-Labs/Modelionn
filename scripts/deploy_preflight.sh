@@ -118,4 +118,42 @@ if [[ "${NEXTAUTH_URL}" == http://* ]]; then
   warn "NEXTAUTH_URL is http://; use https:// in production"
 fi
 
+# ── Docker image security scan ──────────────────────────────
+if command -v trivy >/dev/null 2>&1; then
+  IMAGE_TAG="${MODELIONN_IMAGE_TAG:-modelionn:latest}"
+  echo "==> Scanning Docker image $IMAGE_TAG with Trivy..."
+  if trivy image --severity HIGH,CRITICAL --exit-code 1 --quiet "$IMAGE_TAG" 2>/dev/null; then
+    pass "No HIGH/CRITICAL CVEs detected in $IMAGE_TAG"
+  else
+    warn "Trivy found HIGH/CRITICAL vulnerabilities in $IMAGE_TAG — review before deploying"
+  fi
+else
+  warn "Trivy not installed — skipping container image scan (install: brew install trivy)"
+fi
+
+# ── Network reachability checks ─────────────────────────────
+POSTGRES_HOST="${POSTGRES_HOST:-db}"
+REDIS_HOST="${REDIS_HOST:-redis}"
+IPFS_HOST="${IPFS_HOST:-ipfs}"
+
+for svc_host in "$POSTGRES_HOST" "$REDIS_HOST" "$IPFS_HOST"; do
+  if [[ "$svc_host" == "db" || "$svc_host" == "redis" || "$svc_host" == "ipfs" ]]; then
+    # Docker-internal hostnames won't resolve on the host — skip
+    continue
+  fi
+  if ! ping -c 1 -W 2 "$svc_host" >/dev/null 2>&1; then
+    warn "Cannot reach $svc_host — ensure the service is running"
+  else
+    pass "Service host $svc_host is reachable"
+  fi
+done
+
+# ── Disk space check ────────────────────────────────────────
+AVAIL_KB=$(df -k . | tail -1 | awk '{print $4}')
+if (( AVAIL_KB < 5242880 )); then
+  warn "Less than 5 GB free disk space — Docker builds may fail"
+else
+  pass "Sufficient disk space available ($(( AVAIL_KB / 1048576 )) GB free)"
+fi
+
 echo "==> Preflight passed. Safe to start production stack."

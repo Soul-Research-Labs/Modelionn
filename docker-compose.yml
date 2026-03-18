@@ -163,6 +163,17 @@ services:
     depends_on:
       - prometheus
 
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.61.0
+    environment:
+      - REDIS_ADDR=redis://redis:6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-modelionn_dev}
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - default
+
 volumes:
   ipfs_data:
   redis_data:
