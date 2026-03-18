@@ -213,6 +213,41 @@ async def delete_webhook(
     await db.commit()
 
 
+@router.post("/{webhook_id}/rotate-secret", response_model=WebhookResponse)
+async def rotate_webhook_secret(
+    webhook_id: int,
+    caller: str = Depends(verify_publisher),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Rotate the webhook signing secret.  Returns the new secret once."""
+    row = (
+        await db.execute(
+            select(WebhookConfigRow).where(
+                WebhookConfigRow.id == webhook_id,
+                WebhookConfigRow.hotkey == caller,
+            )
+        )
+    ).scalar_one_or_none()
+    if not row:
+        raise HTTPException(status_code=404, detail="Webhook not found")
+
+    new_secret = secrets.token_hex(32)
+    row.secret = new_secret
+    await db.commit()
+    await db.refresh(row)
+
+    return {
+        "id": row.id,
+        "url": row.url,
+        "label": row.label,
+        "events": row.events.split(",") if row.events else ["*"],
+        "active": row.active,
+        "secret": new_secret,
+        "created_at": row.created_at.isoformat() if row.created_at else "",
+        "last_triggered_at": row.last_triggered_at.isoformat() if row.last_triggered_at else None,
+    }
+
+
 # ── Alertmanager receiver ──────────────────────────────────────
 
 

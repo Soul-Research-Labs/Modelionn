@@ -338,7 +338,7 @@ class ProofJobRow(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     task_id: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, index=True)
-    circuit_id: Mapped[int] = mapped_column(Integer, ForeignKey("circuits.id", ondelete="CASCADE"), nullable=False, index=True)
+    circuit_id: Mapped[int] = mapped_column(Integer, ForeignKey("circuits.id", ondelete="RESTRICT"), nullable=False, index=True)
     requester_hotkey: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
     status: Mapped[str] = mapped_column(
         Enum(ProofJobStatus), nullable=False, default=ProofJobStatus.QUEUED, index=True
@@ -427,6 +427,7 @@ class CircuitPartitionRow(Base):
     status: Mapped[str] = mapped_column(
         String(32), nullable=False, default="pending"  # pending | assigned | proving | completed | failed
     )
+    commitment_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     proof_fragment_cid: Mapped[str | None] = mapped_column(String(128), nullable=True)
     generation_time_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     gpu_backend_used: Mapped[str | None] = mapped_column(Enum(GpuBackendEnum), nullable=True)
