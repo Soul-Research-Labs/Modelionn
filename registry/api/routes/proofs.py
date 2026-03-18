@@ -37,6 +37,9 @@ _CID_RE = re.compile(r'^Qm[1-9A-HJ-NP-Za-km-z]{44}$|^b[a-z2-7]{58}$')
 
 # ── Request / Response Models ────────────────────────────────
 
+_MAX_PUBLIC_INPUTS_SIZE = 1 * 1024 * 1024  # 1 MB
+
+
 class ProofRequest(BaseModel):
     circuit_id: int = Field(..., gt=0)
     witness_cid: str = Field(..., min_length=1, max_length=128)
@@ -167,6 +170,12 @@ async def request_proof(
     requester_hotkey: str = Depends(verify_publisher),
 ) -> dict:
     """Submit a proof generation request."""
+    # Validate public_inputs payload size
+    if body.public_inputs:
+        encoded = json.dumps(body.public_inputs)
+        if len(encoded) > _MAX_PUBLIC_INPUTS_SIZE:
+            raise HTTPException(413, f"public_inputs too large ({len(encoded)} bytes, max {_MAX_PUBLIC_INPUTS_SIZE})")
+
     # Verify circuit exists and is not soft-deleted
     circuit = (await db.execute(
         select(CircuitRow).where(CircuitRow.id == body.circuit_id, CircuitRow.deleted_at.is_(None))
@@ -252,9 +261,16 @@ async def request_proof_batch(
 ) -> dict:
     """Submit up to 10 proof generation requests in a single call.
 
-    Each job is validated independently. If any job fails validation,
-    only that job is skipped — successfully validated jobs are still created.
+    All jobs succeed or fail atomically. If any job fails validation,
+    the entire batch is rolled back.
     """
+    # Validate all public_inputs sizes first
+    for job_req in body.jobs:
+        if job_req.public_inputs:
+            encoded = json.dumps(job_req.public_inputs)
+            if len(encoded) > _MAX_PUBLIC_INPUTS_SIZE:
+                raise HTTPException(413, f"public_inputs too large for circuit_id {job_req.circuit_id}")
+
     # Check overall pending limit: batch size + current pending <= 10
     _active_statuses = [ProofJobStatus.QUEUED.value, ProofJobStatus.DISPATCHED.value, ProofJobStatus.PROVING.value]
     pending_count = (await db.execute(
@@ -270,22 +286,21 @@ async def request_proof_batch(
 
     results: list[dict] = []
     created_count = 0
+    created_rows: list[ProofJobRow] = []
 
-    for job_req in body.jobs[:remaining_slots]:
-        try:
+    # Use a savepoint so partial failures roll back all jobs in the batch
+    async with db.begin_nested():
+        for job_req in body.jobs[:remaining_slots]:
             # Validate circuit (exclude soft-deleted)
             circuit = (await db.execute(
                 select(CircuitRow).where(CircuitRow.id == job_req.circuit_id, CircuitRow.deleted_at.is_(None))
             )).scalar_one_or_none()
             if not circuit:
-                results.append({"status": "error", "circuit_id": job_req.circuit_id, "error": "Circuit not found"})
-                continue
+                raise HTTPException(400, f"Circuit {job_req.circuit_id} not found")
             if not circuit.verification_key_cid:
-                results.append({"status": "error", "circuit_id": job_req.circuit_id, "error": "Missing verification key"})
-                continue
+                raise HTTPException(400, f"Circuit {job_req.circuit_id} missing verification key")
             if not _CID_RE.match(job_req.witness_cid):
-                results.append({"status": "error", "circuit_id": job_req.circuit_id, "error": "Invalid witness CID format"})
-                continue
+                raise HTTPException(400, f"Invalid witness CID format for circuit {job_req.circuit_id}")
 
             # Dedup check
             dup = (await db.execute(
@@ -297,8 +312,7 @@ async def request_proof_batch(
                 ).limit(1)
             )).scalar_one_or_none()
             if dup:
-                results.append({"status": "error", "circuit_id": job_req.circuit_id, "error": "Duplicate job already active"})
-                continue
+                raise HTTPException(409, f"Duplicate job already active for circuit {job_req.circuit_id}")
 
             task_id = uuid.uuid4().hex[:16]
             max_per = settings.max_constraints_per_partition
@@ -318,19 +332,20 @@ async def request_proof_batch(
             )
             db.add(row)
             await db.flush()
-
-            try:
-                from registry.tasks.proof_dispatch import dispatch_proof_job
-                dispatch_proof_job.delay(row.id, request_id_ctx.get())
-            except Exception as exc:
-                logger.warning("Celery unavailable for batch dispatch: %s", exc)
+            created_rows.append(row)
 
             results.append({"status": "created", "task_id": task_id, "circuit_id": job_req.circuit_id})
             created_count += 1
-        except Exception as exc:
-            results.append({"status": "error", "circuit_id": job_req.circuit_id, "error": str(exc)[:200]})
 
     await db.commit()
+
+    # Dispatch to Celery after commit (outside transaction)
+    for row in created_rows:
+        try:
+            from registry.tasks.proof_dispatch import dispatch_proof_job
+            dispatch_proof_job.delay(row.id, request_id_ctx.get())
+        except Exception as exc:
+            logger.warning("Celery unavailable for batch dispatch job %d: %s", row.id, exc)
     logger.info("Batch proof request: %d/%d created by %s", created_count, len(body.jobs), requester_hotkey)
     return {"created": created_count, "total_requested": len(body.jobs), "results": results}
 

@@ -73,14 +73,22 @@ async def _acquire_dispatch_lock(job_id: int) -> tuple[object | None, str, str |
     return redis_client, lock_key, lock_token, bool(acquired)
 
 
+# Lua script for atomic compare-and-delete to prevent releasing another task's lock
+_RELEASE_LOCK_LUA = """
+if redis.call('get', KEYS[1]) == ARGV[1] then
+    return redis.call('del', KEYS[1])
+else
+    return 0
+end
+"""
+
+
 async def _release_dispatch_lock(redis_client, lock_key: str, lock_token: str | None) -> None:
     if not redis_client or not lock_token:
         return
 
     try:
-        current_token = await redis_client.get(lock_key)
-        if current_token == lock_token:
-            await redis_client.delete(lock_key)
+        await redis_client.eval(_RELEASE_LOCK_LUA, 1, lock_key, lock_token)
     except Exception:
         logger.warning("Failed to release dispatch lock for key %s", lock_key, exc_info=True)
 

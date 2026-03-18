@@ -53,6 +53,7 @@ class Settings(BaseSettings):
     # --- Rate Limiting ---
     rate_limit_window: int = 60  # seconds
     rate_limit_max: int = 120  # requests per window
+    trusted_proxies: str = ""  # comma-separated CIDR blocks, e.g. "10.0.0.0/8,172.16.0.0/12"
 
     # --- Security ---
     require_signature_verification: bool = False  # Set True in production

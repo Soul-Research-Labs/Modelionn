@@ -7,6 +7,7 @@ in-memory tracking for development.
 from __future__ import annotations
 
 import hashlib
+import ipaddress
 import logging
 import time
 from collections import defaultdict
@@ -33,6 +34,29 @@ _CLEANUP_INTERVAL = 300
 _MAX_CONCURRENT_PER_CLIENT = 50
 _active_connections: dict[str, int] = defaultdict(int)
 _active_connections_lock = Lock()
+
+# Trusted proxy networks — parsed once at import time
+_trusted_proxy_nets: list[ipaddress.IPv4Network | ipaddress.IPv6Network] = []
+if settings.trusted_proxies:
+    for cidr in settings.trusted_proxies.split(","):
+        cidr = cidr.strip()
+        if cidr:
+            try:
+                _trusted_proxy_nets.append(ipaddress.ip_network(cidr, strict=False))
+            except ValueError:
+                pass
+
+
+def _is_trusted_proxy(ip_str: str) -> bool:
+    """Check if an IP is from a configured trusted proxy network."""
+    if not _trusted_proxy_nets:
+        return False
+    try:
+        addr = ipaddress.ip_address(ip_str)
+    except ValueError:
+        return False
+    return any(addr in net for net in _trusted_proxy_nets)
+
 
 # Redis client — lazily initialised
 _redis_client = None
@@ -123,17 +147,22 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         max_requests = settings.rate_limit_max
 
         # Extract client IP securely:
-        # Use the rightmost IP from X-Forwarded-For that isn't from a trusted proxy.
-        # If not behind a proxy, use the direct client IP.
-        # This prevents spoofing: attackers can prepend fake IPs, but the rightmost
-        # entry before the proxy is the real client.
+        # Walk X-Forwarded-For right-to-left, skipping known trusted proxy IPs.
+        # The first non-trusted IP is the real client. If no trusted proxies are
+        # configured, X-Forwarded-For is ignored entirely (direct connection only).
+        direct_ip = request.client.host if request.client else "unknown"
         forwarded = request.headers.get("x-forwarded-for", "")
-        if forwarded:
+        if forwarded and _trusted_proxy_nets:
             ips = [ip.strip() for ip in forwarded.split(",")]
-            # Rightmost IP is the one set by the closest trusted proxy
-            client_ip = ips[-1] if ips else "unknown"
+            # Walk from right to left; skip trusted proxy IPs
+            client_ip = direct_ip
+            for ip in reversed(ips):
+                if _is_trusted_proxy(ip):
+                    continue
+                client_ip = ip
+                break
         else:
-            client_ip = request.client.host if request.client else "unknown"
+            client_ip = direct_ip
         client_id = request.headers.get("x-api-key", "") or client_ip
         client_hash = hashlib.sha256(client_id.encode()).hexdigest()[:16]
 
