@@ -38,7 +38,7 @@ async-trait = "0.1"
 
 # Arkworks – Groth16 & PLONK
 ark-groth16 = { version = "0.4", optional = true }
-ark-bn254 = { version = "0.4", optional = true }
+ark-bn254 = { version = "0.5", optional = true }
 ark-std = { version = "0.4", optional = true }
 ark-ec = { version = "0.4", optional = true }
 ark-ff = { version = "0.4", optional = true }
