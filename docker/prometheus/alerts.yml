@@ -1,11 +1,11 @@
-# Modelionn Prometheus alert rules — ZK Prover Network
+# ZKML Prometheus alert rules — ZK Prover Network
 
 groups:
-  - name: modelionn_alerts
+  - name: zkml_alerts
     rules:
       - alert: ProofTimeoutSpikeRate
         expr: >
-          rate(modelionn_proof_jobs_timed_out_total[15m]) > 0.1
+          rate(zkml_proof_jobs_timed_out_total[15m]) > 0.1
         for: 10m
         labels:
           severity: critical
@@ -15,8 +15,8 @@ groups:
 
       - alert: HighProofDispatchFailureRate
         expr: >
-          rate(modelionn_proof_dispatch_failures_total[5m]) /
-          rate(modelionn_proof_dispatch_total[5m]) > 0.2
+          rate(zkml_proof_dispatch_failures_total[5m]) /
+          rate(zkml_proof_dispatch_total[5m]) > 0.2
         for: 10m
         labels:
           severity: critical
@@ -25,7 +25,7 @@ groups:
           description: "A significant portion of proof dispatch tasks are failing."
 
       - alert: NoOnlineProvers
-        expr: modelionn_provers_online == 0
+        expr: zkml_provers_online == 0
         for: 5m
         labels:
           severity: critical
@@ -34,7 +34,7 @@ groups:
           description: "All GPU provers are offline — proof generation will fail."
 
       - alert: LowProverCount
-        expr: modelionn_provers_online < 3
+        expr: zkml_provers_online < 3
         for: 15m
         labels:
           severity: warning
@@ -43,17 +43,17 @@ groups:
           description: "Fewer than 3 provers are online — reduced redundancy and throughput."
 
       - alert: MetricsEndpointDown
-        expr: up{job="modelionn"} == 0
+        expr: up{job="zkml"} == 0
         for: 5m
         labels:
           severity: critical
         annotations:
-          summary: "Modelionn metrics endpoint is down"
-          description: "Cannot scrape metrics from the Modelionn registry."
+          summary: "ZKML metrics endpoint is down"
+          description: "Cannot scrape metrics from the ZKML registry."
 
       - alert: HighAPIKeyRejectionRate
         expr: >
-          rate(modelionn_api_key_rejections_total[5m]) > 10
+          rate(zkml_api_key_rejections_total[5m]) > 10
         for: 5m
         labels:
           severity: warning
@@ -63,7 +63,7 @@ groups:
 
       - alert: NonceReplayAttack
         expr: >
-          increase(modelionn_nonce_replays_blocked_total[5m]) > 50
+          increase(zkml_nonce_replays_blocked_total[5m]) > 50
         for: 2m
         labels:
           severity: critical
@@ -72,7 +72,7 @@ groups:
           description: "Excessive nonce replay attempts blocked — possible replay attack in progress."
 
       - alert: IPFSUnreachable
-        expr: modelionn_ipfs_reachable == 0
+        expr: zkml_ipfs_reachable == 0
         for: 5m
         labels:
           severity: critical
@@ -82,7 +82,7 @@ groups:
 
       - alert: HighPartitionOrphanRate
         expr: >
-          increase(modelionn_partitions_reassigned_total[30m]) > 20
+          increase(zkml_partitions_reassigned_total[30m]) > 20
         for: 15m
         labels:
           severity: warning
@@ -91,7 +91,7 @@ groups:
           description: "Many partitions are being reassigned due to prover failures."
 
       - alert: HighProofQueueDepth
-        expr: modelionn_proof_jobs_queued > 100
+        expr: zkml_proof_jobs_queued > 100
         for: 10m
         labels:
           severity: warning
@@ -101,8 +101,8 @@ groups:
 
       - alert: DBPoolSaturation
         expr: >
-          modelionn_db_pool_checked_out /
-          modelionn_db_pool_size > 0.85
+          zkml_db_pool_checked_out /
+          zkml_db_pool_size > 0.85
         for: 5m
         labels:
           severity: warning
@@ -111,7 +111,7 @@ groups:
           description: "More than 85% of DB pool connections are checked out — increase pool size or investigate long-running queries."
 
       - alert: DBPoolExhausted
-        expr: modelionn_db_pool_overflow > 0
+        expr: zkml_db_pool_overflow > 0
         for: 2m
         labels:
           severity: critical
@@ -166,7 +166,7 @@ groups:
           description: "GPU {{ $labels.gpu }} on {{ $labels.instance }} is running hot — risk of thermal throttling."
 
       - alert: GPUUtilizationLow
-        expr: nvidia_gpu_utilization_percent < 10 and modelionn_proof_jobs_queued > 5
+        expr: nvidia_gpu_utilization_percent < 10 and zkml_proof_jobs_queued > 5
         for: 15m
         labels:
           severity: warning
@@ -176,7 +176,7 @@ groups:
 
       - alert: ProofP99LatencyHigh
         expr: >
-          histogram_quantile(0.99, rate(modelionn_proof_latency_seconds_bucket[10m])) > 300
+          histogram_quantile(0.99, rate(zkml_proof_latency_seconds_bucket[10m])) > 300
         for: 15m
         labels:
           severity: warning

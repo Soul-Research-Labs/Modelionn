@@ -1,6 +1,6 @@
 # Encryption Key Management
 
-`MODELIONN_ENCRYPTION_KEY` is used for encrypted fields and must be protected as a production secret.
+`ZKML_ENCRYPTION_KEY` is used for encrypted fields and must be protected as a production secret.
 
 ## Generate Key
 

@@ -1,8 +1,8 @@
-name: Modelionn Scan
-description: Run Modelionn artifact validation and quality checks in CI
+name: ZKML Scan
+description: Run ZKML artifact validation and quality checks in CI
 inputs:
   registry-url:
-    description: URL of the Modelionn registry
+    description: URL of the ZKML registry
     required: true
   artifact-name:
     description: Name of the artifact to scan

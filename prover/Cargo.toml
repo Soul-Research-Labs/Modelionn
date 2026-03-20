@@ -1,13 +1,13 @@
 [package]
-name = "modelionn-prover"
+name = "zkml-prover"
 version = "0.1.0"
 edition = "2021"
-description = "GPU-accelerated ZK proof generation engine for Modelionn"
+description = "GPU-accelerated ZK proof generation engine for ZKML"
 license = "MIT"
-authors = ["Modelionn Contributors"]
+authors = ["ZKML Contributors"]
 
 [lib]
-name = "modelionn_prover"
+name = "zkml_prover"
 crate-type = ["cdylib", "rlib"]
 
 [features]

@@ -50,7 +50,7 @@ export function MobileNav({
                 M
               </div>
               <span className="text-lg font-semibold tracking-tight dark:text-white">
-                Modelionn
+                ZKML
               </span>
             </div>
             <Dialog.Close asChild>
@@ -90,7 +90,7 @@ export function MobileNav({
 
           {/* Footer */}
           <div className="border-t border-gray-200 dark:border-gray-700 p-4">
-            <p className="text-xs text-gray-400">Modelionn v0.2.0</p>
+            <p className="text-xs text-gray-400">ZKML v0.2.0</p>
             <p className="text-xs text-gray-400">
               ZK Prover Network on Bittensor
             </p>

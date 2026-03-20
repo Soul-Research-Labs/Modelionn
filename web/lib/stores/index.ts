@@ -14,7 +14,7 @@ export const useAuthStore = create<AuthState>()(
       hotkey: null,
       setHotkey: (hotkey) => set({ hotkey }),
     }),
-    { name: "modelionn-auth" },
+    { name: "zkml-auth" },
   ),
 );
 
@@ -61,6 +61,6 @@ export const useUIStore = create<UIState>()(
       pageSize: 20,
       setPageSize: (pageSize) => set({ pageSize }),
     }),
-    { name: "modelionn-ui" },
+    { name: "zkml-ui" },
   ),
 );

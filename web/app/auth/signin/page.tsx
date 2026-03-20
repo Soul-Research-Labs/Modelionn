@@ -71,7 +71,7 @@ function SignInPageContent() {
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-brand-600 text-white font-bold text-xl">
             M
           </div>
-          <CardTitle className="text-2xl">Sign in to Modelionn</CardTitle>
+          <CardTitle className="text-2xl">Sign in to ZKML</CardTitle>
           <p className="mt-2 text-sm text-gray-500">
             Connect your Bittensor wallet to access the registry
           </p>

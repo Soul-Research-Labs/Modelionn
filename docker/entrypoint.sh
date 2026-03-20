@@ -2,12 +2,12 @@
 set -e
 
 # Validate required environment variables
-: "${MODELIONN_DATABASE_URL:?MODELIONN_DATABASE_URL must be set}"
+: "${ZKML_DATABASE_URL:?ZKML_DATABASE_URL must be set}"
 
 # Optional validation for production
-if [ "${MODELIONN_ENV:-development}" = "production" ]; then
-  : "${MODELIONN_REDIS_URL:?MODELIONN_REDIS_URL must be set in production}"
-  : "${MODELIONN_SECRET_KEY:?MODELIONN_SECRET_KEY must be set in production}"
+if [ "${ZKML_ENV:-development}" = "production" ]; then
+  : "${ZKML_REDIS_URL:?ZKML_REDIS_URL must be set in production}"
+  : "${ZKML_SECRET_KEY:?ZKML_SECRET_KEY must be set in production}"
   : "${NEXTAUTH_SECRET:?NEXTAUTH_SECRET must be set in production}"
   : "${FLOWER_PASSWORD:?FLOWER_PASSWORD must be set in production (Celery Flower dashboard)}"
 fi
@@ -25,7 +25,7 @@ _term() {
 trap _term SIGTERM SIGINT
 
 # Default CORS handling validation
-if [ "${MODELIONN_ENV:-development}" = "production" ]; then
+if [ "${ZKML_ENV:-development}" = "production" ]; then
   if echo "$CORS_ORIGINS" | grep -q 'http://'; then
     echo "ERROR: CORS_ORIGINS must not contain http:// in production!"
     exit 1

@@ -1,1 +1,1 @@
-"""Modelionn async task package — Celery-based evaluation pipeline."""
+"""ZKML async task package — Celery-based evaluation pipeline."""

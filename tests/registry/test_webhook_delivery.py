@@ -117,7 +117,7 @@ class TestCircuitBreaker:
 
 class TestDLQLogging:
     def test_logs_error(self, caplog):
-        with caplog.at_level(logging.ERROR, logger="modelionn.webhook.dlq"):
+        with caplog.at_level(logging.ERROR, logger="zkml.webhook.dlq"):
             _log_to_dlq(99, "proof.failed", {"job_id": 1}, "Timeout")
         assert "DLQ" in caplog.text
         assert "webhook_id=99" in caplog.text
@@ -125,7 +125,7 @@ class TestDLQLogging:
 
     def test_truncates_payload(self, caplog):
         big_payload = {"data": "x" * 5000}
-        with caplog.at_level(logging.ERROR, logger="modelionn.webhook.dlq"):
+        with caplog.at_level(logging.ERROR, logger="zkml.webhook.dlq"):
             _log_to_dlq(1, "test", big_payload, "err")
         # Payload dump is truncated to 2000 chars
         log_text = caplog.text

@@ -1,4 +1,4 @@
-//! Modelionn Prover Engine — GPU-accelerated zero-knowledge proof generation.
+//! ZKML Prover Engine — GPU-accelerated zero-knowledge proof generation.
 //!
 //! Supports multiple proof systems (Groth16, PLONK, Halo2, STARKs) and
 //! GPU backends (CUDA, ROCm, Metal, WebGPU) for distributed collaborative proving.

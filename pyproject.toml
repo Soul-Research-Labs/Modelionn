@@ -3,13 +3,13 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "modelionn"
+name = "zkml"
 version = "0.2.0"
 description = "The Open Intelligence Registry — incentive-native AI artifact registry on Bittensor"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
-authors = [{ name = "Modelionn Contributors" }]
+authors = [{ name = "ZKML Contributors" }]
 
 dependencies = [
     "fastapi>=0.110,<1",
@@ -49,7 +49,7 @@ ml = [
 ]
 
 [project.scripts]
-modelionn = "cli.main:app"
+zkml = "cli.main:app"
 
 [tool.hatch.build.targets.wheel]
 packages = ["registry", "subnet", "sdk", "cli"]

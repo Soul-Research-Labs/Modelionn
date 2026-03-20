@@ -8,10 +8,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from sdk.client import ModelionnClient, _sleep_backoff
+from sdk.client import ZKMLClient, _sleep_backoff
 from sdk.errors import (
     AuthError,
-    ModelionnError,
+    ZKMLError,
     NotFoundError,
     RateLimitError,
     ServerError,
@@ -38,14 +38,14 @@ def _mock_response(
 
 
 def _make_client(responses, **kwargs):
-    """Create a ModelionnClient with mocked HTTP transport.
+    """Create a ZKMLClient with mocked HTTP transport.
 
     Args:
         responses: Single mock response or list for sequential calls.
     """
     if "hotkey" in kwargs and "sign_fn" not in kwargs:
         kwargs["sign_fn"] = lambda msg: "test_sig"
-    c = ModelionnClient(max_retries=0, **kwargs)
+    c = ZKMLClient(max_retries=0, **kwargs)
     mock_http = MagicMock()
     if isinstance(responses, list):
         mock_http.request.side_effect = responses
@@ -202,7 +202,7 @@ class TestRetryIntegration:
         fail = _mock_response(503)
         ok = _mock_response(200, {"status": "ok"})
 
-        c = ModelionnClient(max_retries=2)
+        c = ZKMLClient(max_retries=2)
         mock_http = MagicMock()
         mock_http.request.side_effect = [fail, ok]
         mock_http.is_closed = False
@@ -217,7 +217,7 @@ class TestRetryIntegration:
         rate_limited = _mock_response(429, headers={"Retry-After": "1"})
         ok = _mock_response(200, {"ok": True})
 
-        c = ModelionnClient(max_retries=2)
+        c = ZKMLClient(max_retries=2)
         mock_http = MagicMock()
         mock_http.request.side_effect = [rate_limited, ok]
         mock_http.is_closed = False
@@ -231,7 +231,7 @@ class TestRetryIntegration:
         timeout = _mock_response(408)
         ok = _mock_response(200, {"ok": True})
 
-        c = ModelionnClient(max_retries=1)
+        c = ZKMLClient(max_retries=1)
         mock_http = MagicMock()
         mock_http.request.side_effect = [timeout, ok]
         mock_http.is_closed = False
@@ -244,7 +244,7 @@ class TestRetryIntegration:
     def test_no_retry_on_validation_error(self):
         bad = _mock_response(422, {"detail": "Bad input"})
 
-        c = ModelionnClient(max_retries=3)
+        c = ZKMLClient(max_retries=3)
         mock_http = MagicMock()
         mock_http.request.return_value = bad
         mock_http.is_closed = False
@@ -257,7 +257,7 @@ class TestRetryIntegration:
     def test_connection_error_retries(self):
         import httpx as _httpx
 
-        c = ModelionnClient(max_retries=2)
+        c = ZKMLClient(max_retries=2)
         mock_http = MagicMock()
         mock_http.request.side_effect = [
             _httpx.ConnectError("refused"),
@@ -273,14 +273,14 @@ class TestRetryIntegration:
     def test_all_retries_exhausted(self):
         import httpx as _httpx
 
-        c = ModelionnClient(max_retries=1)
+        c = ZKMLClient(max_retries=1)
         mock_http = MagicMock()
         mock_http.request.side_effect = _httpx.ConnectError("refused")
         mock_http.is_closed = False
         c._http = mock_http
 
         with patch("sdk.client._sleep_backoff"):
-            with pytest.raises(ModelionnError, match="Connection failed"):
+            with pytest.raises(ZKMLError, match="Connection failed"):
                 c._request_with_retry("GET", "http://test/down")
 
 
@@ -334,7 +334,7 @@ class TestApiKeyOperations:
 
 class TestConnectionManagement:
     def test_close_releases_http(self):
-        c = ModelionnClient()
+        c = ZKMLClient()
         mock_http = MagicMock()
         mock_http.is_closed = False
         c._http = mock_http
@@ -344,12 +344,12 @@ class TestConnectionManagement:
         assert c._http is None
 
     def test_close_noop_when_already_closed(self):
-        c = ModelionnClient()
+        c = ZKMLClient()
         c._http = None
         c.close()  # Should not raise
 
     def test_context_manager_closes(self):
-        with ModelionnClient() as c:
+        with ZKMLClient() as c:
             mock_http = MagicMock()
             mock_http.is_closed = False
             c._http = mock_http
@@ -357,7 +357,7 @@ class TestConnectionManagement:
         mock_http.close.assert_called_once()
 
     def test_get_http_creates_client(self):
-        c = ModelionnClient()
+        c = ZKMLClient()
         assert c._http is None
 
         with patch("sdk.client.httpx.Client") as mock_cls:
@@ -406,5 +406,5 @@ class TestServerErrors:
     def test_unknown_status_raises_base_error(self):
         c, mock = _make_client(_mock_response(418, {"detail": "I'm a teapot"}))
 
-        with pytest.raises(ModelionnError):
+        with pytest.raises(ZKMLError):
             c.list_circuits()

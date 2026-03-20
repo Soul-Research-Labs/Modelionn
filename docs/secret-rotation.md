@@ -1,6 +1,6 @@
 # Secret Rotation Runbook
 
-Procedure for rotating secrets in the Modelionn registry.
+Procedure for rotating secrets in the ZKML registry.
 
 ## Webhook Signing Secrets
 
@@ -10,7 +10,7 @@ Webhook secrets are per-webhook and used for HMAC-SHA256 signing.
 
 ```bash
 # Rotate via the REST API (returns the new secret once)
-curl -X POST https://api.modelionn.io/webhooks/{webhook_id}/rotate-secret \
+curl -X POST https://api.zkml.io/webhooks/{webhook_id}/rotate-secret \
   -H "x-hotkey: $HOTKEY" \
   -H "x-signature: $SIGNATURE" \
   -H "x-nonce: $(uuidgen)" \
@@ -23,14 +23,14 @@ curl -X POST https://api.modelionn.io/webhooks/{webhook_id}/rotate-secret \
 2. Old signatures will immediately stop validating.
 3. There is **no grace period** — rotate during a maintenance window or implement dual-signature validation on the receiver side.
 
-## Database Encryption Key (`MODELIONN_DB_ENCRYPTION_KEY`)
+## Database Encryption Key (`ZKML_DB_ENCRYPTION_KEY`)
 
 See [encryption-key-management.md](encryption-key-management.md) for the full procedure.
 
 **Summary:**
 
 1. Generate new key: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`
-2. Set `MODELIONN_DB_ENCRYPTION_KEY_NEW` in environment.
+2. Set `ZKML_DB_ENCRYPTION_KEY_NEW` in environment.
 3. Run `python -m cli.main rotate-encryption-key` to re-encrypt all sensitive columns.
 4. Swap: rename `_NEW` → primary, remove old key.
 5. Restart all app replicas.

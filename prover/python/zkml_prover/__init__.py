@@ -1,11 +1,11 @@
-"""Modelionn Prover — Python interface to the Rust ZK proof engine.
+"""ZKML Prover — Python interface to the Rust ZK proof engine.
 
 Provides a high-level API for proof generation, verification, circuit
 partitioning, and GPU management. The underlying computation is performed
 by the Rust prover engine via PyO3 bindings.
 
 Usage:
-    from modelionn_prover import ProverEngine, create_partition_plan
+    from zkml_prover import ProverEngine, create_partition_plan
 
     engine = ProverEngine()
     proof = await engine.prove(circuit_data, witness_data)
@@ -124,7 +124,7 @@ class ProverEngine:
         self._rust_engine = None
 
         try:
-            from modelionn_prover import ProverEngine as RustEngine
+            from zkml_prover import ProverEngine as RustEngine
             self._rust_engine = RustEngine(max_constraints)
             logger.info("Rust prover engine loaded")
         except ImportError:
@@ -140,7 +140,7 @@ class ProverEngine:
         start = time.monotonic()
 
         if self._rust_engine is not None:
-            from modelionn_prover import Circuit, Witness
+            from zkml_prover import Circuit, Witness
             rust_circuit = Circuit(
                 circuit.id, circuit.name, circuit.proof_system.value,
                 circuit.circuit_type.value, circuit.num_constraints,
@@ -185,7 +185,7 @@ class ProverEngine:
         inputs = public_inputs or proof.public_inputs
 
         if self._rust_engine is not None:
-            from modelionn_prover import Circuit, Proof
+            from zkml_prover import Circuit, Proof
             rust_circuit = Circuit(
                 circuit.id, circuit.name, circuit.proof_system.value,
                 circuit.circuit_type.value, circuit.num_constraints,

@@ -1,6 +1,6 @@
-"""Modelionn Async Python SDK — async ZK prover network client.
+"""ZKML Async Python SDK — async ZK prover network client.
 
-Mirrors :class:`ModelionnClient` but uses ``httpx.AsyncClient`` for
+Mirrors :class:`ZKMLClient` but uses ``httpx.AsyncClient`` for
 non-blocking I/O, suitable for validators, batch scripts, and high-concurrency
 callers.
 """
@@ -16,7 +16,7 @@ from typing import Any
 import httpx
 
 from sdk.errors import (
-    ModelionnError,
+    ZKMLError,
     RateLimitError,
     raise_for_status,
 )
@@ -28,12 +28,12 @@ _DEFAULT_BACKOFF_BASE = 1.0
 _DEFAULT_BACKOFF_CAP = 15.0
 
 
-class AsyncModelionnClient:
-    """Async client for the Modelionn ZK Prover Network API.
+class AsyncZKMLClient:
+    """Async client for the ZKML ZK Prover Network API.
 
     Usage::
 
-        async with AsyncModelionnClient("http://localhost:8000") as client:
+        async with AsyncZKMLClient("http://localhost:8000") as client:
             circuits = await client.list_circuits()
             job = await client.request_proof(circuit_id=1, witness_cid="Qm...")
     """
@@ -64,7 +64,7 @@ class AsyncModelionnClient:
             )
         return self._http
 
-    async def __aenter__(self) -> AsyncModelionnClient:
+    async def __aenter__(self) -> AsyncZKMLClient:
         return self
 
     async def __aexit__(self, *args: Any) -> None:
@@ -85,10 +85,10 @@ class AsyncModelionnClient:
         if self._sign_fn:
             sig = self._sign_fn(message)
         else:
-            raise ModelionnError(
+            raise ZKMLError(
                 "sign_fn is required for authenticated requests. "
                 "Provide a signing function (e.g. bittensor Keypair.sign) when "
-                "constructing AsyncModelionnClient."
+                "constructing AsyncZKMLClient."
             )
         return {
             "x-hotkey": self._hotkey,
@@ -133,10 +133,10 @@ class AsyncModelionnClient:
                 if attempt < self._max_retries:
                     await asyncio.sleep(min(self._backoff_base * (2 ** attempt), self._backoff_cap) * random.uniform(0.5, 1.0))
                     continue
-                raise ModelionnError(f"Connection failed after {self._max_retries + 1} attempts: {exc}") from exc
-            except (ModelionnError, RateLimitError):
+                raise ZKMLError(f"Connection failed after {self._max_retries + 1} attempts: {exc}") from exc
+            except (ZKMLError, RateLimitError):
                 raise
-        raise ModelionnError(f"Request failed after {self._max_retries + 1} attempts") from last_exc
+        raise ZKMLError(f"Request failed after {self._max_retries + 1} attempts") from last_exc
 
     # ── ZK Circuits ──────────────────────────────────────────
 
@@ -429,7 +429,7 @@ class AsyncModelionnClient:
         proof = await self.get_proof(proof_id)
         cid = proof.get("proof_data_cid")
         if not cid:
-            raise ModelionnError(f"Proof {proof_id} has no proof_data_cid")
+            raise ZKMLError(f"Proof {proof_id} has no proof_data_cid")
 
         url = f"{self._url}/proofs/{proof_id}/download"
         client = await self._get_http(timeout=300)

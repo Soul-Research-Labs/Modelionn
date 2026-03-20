@@ -1,4 +1,4 @@
-"""Multi-factor reward function for the Modelionn ZK prover subnet.
+"""Multi-factor reward function for the ZKML ZK prover subnet.
 
 Prover scoring formula:
     reward = w₁·correctness + w₂·speed + w₃·throughput + w₄·reliability + w₅·efficiency

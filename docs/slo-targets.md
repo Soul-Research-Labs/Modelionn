@@ -1,6 +1,6 @@
 # Service Level Objectives (SLOs)
 
-This document defines the target availability, latency, and reliability metrics for the Modelionn network.
+This document defines the target availability, latency, and reliability metrics for the ZKML network.
 
 ## Availability SLOs
 
@@ -82,7 +82,7 @@ All backups are encrypted with AES-256-GCM:
 
 ```bash
 # Backup: encrypts with master key before S3 upload
-pg_dump | gpg --encrypt --recipient ops@modelionn.com | aws s3 cp - s3://backups/db.sql.gpg
+pg_dump | gpg --encrypt --recipient ops@zkml.com | aws s3 cp - s3://backups/db.sql.gpg
 
 # Restore: downloads, decrypts, restores
 aws s3 cp s3://backups/db.sql.gpg - | gpg --decrypt | psql

@@ -32,7 +32,7 @@ _cb_open_until: dict[int, float] = {}
 
 # Dead-letter queue logger — permanently failed deliveries are logged here
 # so operators can replay them later.
-_dlq_logger = logging.getLogger("modelionn.webhook.dlq")
+_dlq_logger = logging.getLogger("zkml.webhook.dlq")
 
 
 def _sign_payload(payload_bytes: bytes, secret: str) -> str:
@@ -200,8 +200,8 @@ async def _deliver(task, webhook_id: int, event: str, payload: dict) -> dict:
                     content=body,
                     headers={
                         "Content-Type": "application/json",
-                        "X-Modelionn-Signature": f"sha256={signature}",
-                        "X-Modelionn-Event": event,
+                        "X-ZKML-Signature": f"sha256={signature}",
+                        "X-ZKML-Event": event,
                     },
                 )
                 resp.raise_for_status()

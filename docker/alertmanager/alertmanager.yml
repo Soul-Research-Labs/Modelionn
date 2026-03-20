@@ -1,4 +1,4 @@
-# Alertmanager configuration for Modelionn
+# Alertmanager configuration for ZKML
 # Configure receivers below to route alerts to Slack, email, or webhooks.
 
 global:

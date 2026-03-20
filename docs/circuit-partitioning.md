@@ -1,6 +1,6 @@
 # Circuit Partitioning Heuristics
 
-How the Modelionn proof pipeline splits large circuits into parallelizable partition fragments.
+How the ZKML proof pipeline splits large circuits into parallelizable partition fragments.
 
 ## Overview
 

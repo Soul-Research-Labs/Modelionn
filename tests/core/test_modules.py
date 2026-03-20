@@ -273,10 +273,10 @@ class TestSDKErrors:
         assert err.retry_after == 30
         assert err.status_code == 429
 
-    def test_modelionn_error_status_code(self):
-        from sdk.errors import ModelionnError
+    def test_zkml_error_status_code(self):
+        from sdk.errors import ZKMLError
 
-        err = ModelionnError("test", status_code=418, detail="teapot")
+        err = ZKMLError("test", status_code=418, detail="teapot")
         assert err.status_code == 418
         assert err.detail == "teapot"
         assert str(err) == "test"

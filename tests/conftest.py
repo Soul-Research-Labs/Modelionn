@@ -5,7 +5,7 @@ import os
 import pytest
 
 # Enable debug mode so the secret-key production guard doesn't fire during tests.
-os.environ.setdefault("MODELIONN_DEBUG", "1")
+os.environ.setdefault("ZKML_DEBUG", "1")
 
 
 @pytest.fixture(autouse=True)

@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Modelionn are documented in this file.
+All notable changes to ZKML are documented in this file.
 
 ## [0.2.0] — 2026-03-17
 
@@ -17,7 +17,7 @@ All notable changes to Modelionn are documented in this file.
 - **IPFS API restricted**: Remove port 5001 exposure in production compose
 - **Grafana anonymous access disabled** in production overlay
 - **Resource limits** added for registry, worker, and beat services
-- **Secret validation**: Entrypoint now validates `MODELIONN_SECRET_KEY` in prod
+- **Secret validation**: Entrypoint now validates `ZKML_SECRET_KEY` in prod
 - **Cargo.lock required**: Dockerfile uses strict COPY for reproducible Rust builds
 - **IDOR fixed**: `list_proof_jobs` no longer accepts `?requester=` param to view other users' jobs
 - **Scoped queries**: `list_proofs` now filters by caller's hotkey instead of returning all proofs
@@ -79,7 +79,7 @@ All notable changes to Modelionn are documented in this file.
 
 - Version bumped to 0.2.0 (aligned pyproject.toml with app.py)
 - CONTRIBUTING.md: remove ghost `tests/evaluation/` references
-- DEPLOYMENT.md: fix `DATABASE_URL` → `MODELIONN_DATABASE_URL` in troubleshooting
+- DEPLOYMENT.md: fix `DATABASE_URL` → `ZKML_DATABASE_URL` in troubleshooting
 - Web CI now runs Jest in the web pipeline (`npm test -- --runInBand`) in addition to lint and typecheck
 - Frontend auth pages now wrap `useSearchParams()` in `Suspense` to satisfy Next.js prerender/build requirements
 - Settings UI now aligns with typed API contracts (`ApiKey`/`Webhook`) and uses strongly typed field access
@@ -115,7 +115,7 @@ All notable changes to Modelionn are documented in this file.
 - **Security**: Redis-backed sliding window rate limiter with in-memory fallback
 - **Security**: Redis-backed nonce replay prevention with TTL
 - **Security**: Fail-fast `RuntimeError` if default secret key used in production
-- **Security**: Non-root Docker user (`modelionn`) with health check
+- **Security**: Non-root Docker user (`zkml`) with health check
 - **Security**: Removed `unsafe-eval` from Content Security Policy
 - **Security**: SAST (Bandit) and dependency scanning in CI pipeline
 - **Reliability**: Streaming audit CSV export via async generator
@@ -128,9 +128,9 @@ All notable changes to Modelionn are documented in this file.
 - **Frontend**: Wallet authentication via NextAuth
 - **Frontend**: Accessibility — skip links, ARIA labels, semantic HTML, keyboard navigation
 - **SDK**: Python client with connection pooling, retry with backoff, typed ZK methods
-- **CLI**: `modelionn circuits`, `upload-circuit`, `prove`, `proof-status`, `proof-jobs`, `verify-proof`
-- **CLI**: `modelionn provers`, `network-stats`, `info`, `auth`, `login`
-- **CLI**: `--json` flag for machine-readable output, config file support (`~/.modelionn.toml`)
+- **CLI**: `zkml circuits`, `upload-circuit`, `prove`, `proof-status`, `proof-jobs`, `verify-proof`
+- **CLI**: `zkml provers`, `network-stats`, `info`, `auth`, `login`
+- **CLI**: `--json` flag for machine-readable output, config file support (`~/.zkml.toml`)
 - **Registry**: FastAPI service with 7 route modules (circuits, proofs, provers, orgs, audit, api-keys, metrics)
 - **Registry**: 7-layer middleware stack (RequestID, SecurityHeaders, CSRF, Tenant, APIKeyAuth, RateLimit, Metrics)
 - **Registry**: Multi-tenancy & RBAC (Viewer / Editor / Admin)
@@ -145,4 +145,4 @@ All notable changes to Modelionn are documented in this file.
 
 ### Changed
 
-- `alembic.ini` now uses `%(MODELIONN_DATABASE_URL)s` instead of hardcoded SQLite path
+- `alembic.ini` now uses `%(ZKML_DATABASE_URL)s` instead of hardcoded SQLite path

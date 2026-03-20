@@ -4,7 +4,7 @@ import { Providers } from "@/components/providers";
 import { AppShell } from "@/components/app-shell";
 
 export const metadata: Metadata = {
-  title: "Modelionn — Open Intelligence Registry",
+  title: "ZKML — Open Intelligence Registry",
   description:
     "The Open Intelligence Registry — publish, discover, and evaluate AI models, datasets & benchmarks on Bittensor.",
   icons: {

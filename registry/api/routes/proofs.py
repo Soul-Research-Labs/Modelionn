@@ -554,7 +554,7 @@ async def verify_proof(
     valid = False
     details = "Verification pending"
     try:
-        from prover.python.modelionn_prover import (
+        from prover.python.zkml_prover import (
             ProverEngine, CircuitData, ProofResult, ProofSystem, CircuitType,
         )
         from registry.storage.ipfs import IPFSStorage

@@ -1,4 +1,4 @@
-# Capacity Planning Guide — Modelionn
+# Capacity Planning Guide — ZKML
 
 This guide helps operators size their deployment for expected workloads.
 
@@ -112,9 +112,9 @@ Configure alerts in `docker/prometheus/alerts.yml` based on your capacity:
 
 | Metric                                        | Warning   | Critical  | Action                                      |
 | --------------------------------------------- | --------- | --------- | ------------------------------------------- |
-| `modelionn_proof_queue_depth`                 | > 50      | > 100     | Scale workers                               |
-| `modelionn_http_request_duration_seconds` P99 | > 5s      | > 30s     | Scale registry or investigate slow queries  |
-| `modelionn_http_requests_in_flight`           | > 50      | > 100     | Scale registry                              |
+| `zkml_proof_queue_depth`                 | > 50      | > 100     | Scale workers                               |
+| `zkml_http_request_duration_seconds` P99 | > 5s      | > 30s     | Scale registry or investigate slow queries  |
+| `zkml_http_requests_in_flight`           | > 50      | > 100     | Scale registry                              |
 | PostgreSQL connections                        | > 80% max | > 95% max | Increase `max_connections` or add pgbouncer |
 | Disk usage                                    | > 70%     | > 85%     | Expand volume or prune old data             |
 

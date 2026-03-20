@@ -13,7 +13,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
       "targets": [
         {
-          "expr": "rate(modelionn_http_requests_total[1m])",
+          "expr": "rate(zkml_http_requests_total[1m])",
           "legendFormat": "req/s"
         }
       ]
@@ -25,7 +25,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
       "targets": [
         {
-          "expr": "rate(modelionn_http_request_duration_seconds_sum[1m]) / rate(modelionn_http_request_duration_seconds_count[1m])",
+          "expr": "rate(zkml_http_request_duration_seconds_sum[1m]) / rate(zkml_http_request_duration_seconds_count[1m])",
           "legendFormat": "avg latency"
         }
       ],
@@ -40,7 +40,7 @@
       "gridPos": { "h": 8, "w": 6, "x": 0, "y": 8 },
       "targets": [
         {
-          "expr": "modelionn_http_requests_in_flight",
+          "expr": "zkml_http_requests_in_flight",
           "legendFormat": "in-flight"
         }
       ]
@@ -52,7 +52,7 @@
       "gridPos": { "h": 8, "w": 6, "x": 6, "y": 8 },
       "targets": [
         {
-          "expr": "modelionn_proofs_generated_total",
+          "expr": "zkml_proofs_generated_total",
           "legendFormat": "total"
         }
       ]
@@ -64,7 +64,7 @@
       "gridPos": { "h": 8, "w": 6, "x": 12, "y": 8 },
       "targets": [
         {
-          "expr": "modelionn_circuits_uploaded_total",
+          "expr": "zkml_circuits_uploaded_total",
           "legendFormat": "total"
         }
       ]
@@ -76,11 +76,11 @@
       "gridPos": { "h": 8, "w": 6, "x": 18, "y": 8 },
       "targets": [
         {
-          "expr": "modelionn_active_miners",
+          "expr": "zkml_active_miners",
           "legendFormat": "miners"
         },
         {
-          "expr": "modelionn_active_validators",
+          "expr": "zkml_active_validators",
           "legendFormat": "validators"
         }
       ]
@@ -92,7 +92,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
       "targets": [
         {
-          "expr": "rate(modelionn_proof_latency_seconds_sum[5m]) / rate(modelionn_proof_latency_seconds_count[5m])",
+          "expr": "rate(zkml_proof_latency_seconds_sum[5m]) / rate(zkml_proof_latency_seconds_count[5m])",
           "legendFormat": "avg"
         }
       ],
@@ -107,7 +107,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
       "targets": [
         {
-          "expr": "rate(modelionn_upload_size_bytes_sum[5m])",
+          "expr": "rate(zkml_upload_size_bytes_sum[5m])",
           "legendFormat": "bytes/s"
         }
       ],
@@ -122,11 +122,11 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
       "targets": [
         {
-          "expr": "histogram_quantile(0.99, rate(modelionn_http_request_duration_seconds_bucket[5m]))",
+          "expr": "histogram_quantile(0.99, rate(zkml_http_request_duration_seconds_bucket[5m]))",
           "legendFormat": "P99"
         },
         {
-          "expr": "histogram_quantile(0.95, rate(modelionn_http_request_duration_seconds_bucket[5m]))",
+          "expr": "histogram_quantile(0.95, rate(zkml_http_request_duration_seconds_bucket[5m]))",
           "legendFormat": "P95"
         }
       ],
@@ -141,15 +141,15 @@
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
       "targets": [
         {
-          "expr": "modelionn_proof_jobs_queued",
+          "expr": "zkml_proof_jobs_queued",
           "legendFormat": "queued"
         },
         {
-          "expr": "modelionn_proof_jobs_proving",
+          "expr": "zkml_proof_jobs_proving",
           "legendFormat": "proving"
         },
         {
-          "expr": "modelionn_proof_jobs_aggregating",
+          "expr": "zkml_proof_jobs_aggregating",
           "legendFormat": "aggregating"
         }
       ]
@@ -161,7 +161,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 32 },
       "targets": [
         {
-          "expr": "rate(modelionn_proof_aggregation_seconds_sum[5m]) / rate(modelionn_proof_aggregation_seconds_count[5m])",
+          "expr": "rate(zkml_proof_aggregation_seconds_sum[5m]) / rate(zkml_proof_aggregation_seconds_count[5m])",
           "legendFormat": "avg aggregation"
         }
       ],
@@ -187,10 +187,10 @@
     }
   ],
   "schemaVersion": 39,
-  "tags": ["modelionn", "bittensor"],
+  "tags": ["zkml", "bittensor"],
   "templating": { "list": [] },
   "time": { "from": "now-1h", "to": "now" },
-  "title": "Modelionn ZK Prover Network",
-  "uid": "modelionn-registry",
+  "title": "ZKML ZK Prover Network",
+  "uid": "zkml-registry",
   "version": 1
 }

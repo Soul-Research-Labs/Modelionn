@@ -133,7 +133,7 @@ async def verify_publisher(
             )
         logger.warning(
             "DEV MODE: bittensor not installed — signature verification disabled for hotkey %s. "
-            "Set MODELIONN_DEBUG=false in production.",
+            "Set ZKML_DEBUG=false in production.",
             x_hotkey,
         )
     except Exception as exc:

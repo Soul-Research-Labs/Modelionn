@@ -1,4 +1,4 @@
-# Contributing to Modelionn
+# Contributing to ZKML
 
 Thank you for your interest in contributing! This document covers the development setup,
 coding standards, and pull-request process.
@@ -15,8 +15,8 @@ coding standards, and pull-request process.
 
 ```bash
 # Clone the repo
-git clone https://github.com/your-org/modelionn.git
-cd modelionn
+git clone https://github.com/your-org/zkml.git
+cd zkml
 
 # Create a virtual environment
 python -m venv .venv && source .venv/bin/activate

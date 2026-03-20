@@ -7,7 +7,7 @@ Tests the actual ZK proof lifecycle through the Rust prover engine:
 4. Verify the generated proof
 5. Test failure cases (circuit too large, empty witness)
 
-Requires the `modelionn_prover` PyO3 module to be built.
+Requires the `zkml_prover` PyO3 module to be built.
 Run `cd prover && maturin develop --features python` to build.
 """
 
@@ -18,8 +18,8 @@ import pytest
 
 # Skip the entire module if the Rust prover isn't built
 prover = pytest.importorskip(
-    "modelionn_prover",
-    reason="Rust prover (modelionn_prover) not built — run `cd prover && maturin develop --features python`",
+    "zkml_prover",
+    reason="Rust prover (zkml_prover) not built — run `cd prover && maturin develop --features python`",
 )
 
 

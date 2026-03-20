@@ -1,9 +1,9 @@
-"""Modelionn SDK — Python client for the Modelionn ZK prover registry."""
+"""ZKML SDK — Python client for the ZKML ZK prover registry."""
 
-from sdk.client import ModelionnClient
-from sdk.async_client import AsyncModelionnClient
+from sdk.client import ZKMLClient
+from sdk.async_client import AsyncZKMLClient
 from sdk.errors import (
-    ModelionnError,
+    ZKMLError,
     AuthError,
     NotFoundError,
     RateLimitError,
@@ -12,9 +12,9 @@ from sdk.errors import (
 )
 
 __all__ = [
-    "ModelionnClient",
-    "AsyncModelionnClient",
-    "ModelionnError",
+    "ZKMLClient",
+    "AsyncZKMLClient",
+    "ZKMLError",
     "AuthError",
     "NotFoundError",
     "RateLimitError",

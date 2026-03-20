@@ -1,4 +1,4 @@
-"""Structured JSON logging for the Modelionn registry.
+"""Structured JSON logging for the ZKML registry.
 
 Uses stdlib logging with a custom JSON formatter so there's no extra dependency.
 Request-ID from RequestIDMiddleware is included automatically when available.

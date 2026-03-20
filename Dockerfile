@@ -18,7 +18,7 @@ COPY prover/src/ src/
 
 # Build the prover library (release mode, default features only for base image)
 RUN cargo build --release --lib --all-features
-# The compiled .so will be at /prover/target/release/libmodelio_prover.so
+# The compiled .so will be at /prover/target/release/libzkml_prover.so
 
 # ── Stage 2: Python backend ──────────────────────────────────
 FROM python:3.11-slim AS backend
@@ -36,7 +36,7 @@ RUN pip install --no-cache-dir .
 
 # Copy compiled Rust prover library (optional — non-GPU builds may skip)
 RUN --mount=from=prover-builder,source=/prover/target/release,target=/tmp/prover-build \
-    install -m 755 /tmp/prover-build/libmodelionn_prover.so /usr/local/lib/libmodelionn_prover.so && \
+    install -m 755 /tmp/prover-build/libzkml_prover.so /usr/local/lib/libzkml_prover.so && \
     ldconfig
 
 # ── Stage 3: Frontend build (optional, for standalone) ───────
@@ -55,7 +55,7 @@ FROM python:3.11-slim
 RUN apt-get update && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 
-RUN groupadd -r modelionn && useradd -r -g modelionn -m modelionn
+RUN groupadd -r zkml && useradd -r -g zkml -m zkml
 
 WORKDIR /app
 COPY --from=backend /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
@@ -64,7 +64,7 @@ COPY --from=backend /app /app
 
 # Copy Rust prover shared library
 RUN --mount=from=backend,source=/usr/local/lib,target=/tmp/backend-lib \
-    install -m 755 /tmp/backend-lib/libmodelionn_prover.so /usr/local/lib/libmodelionn_prover.so && \
+    install -m 755 /tmp/backend-lib/libzkml_prover.so /usr/local/lib/libzkml_prover.so && \
     ldconfig
 
 COPY docker/entrypoint.sh /app/entrypoint.sh
@@ -76,9 +76,9 @@ COPY --from=frontend /web/.next/static /app/web-standalone/.next/static
 COPY --from=frontend /web/public /app/web-standalone/public
 
 # Writable data directory
-RUN mkdir -p /app/data && chown -R modelionn:modelionn /app/data
+RUN mkdir -p /app/data && chown -R zkml:zkml /app/data
 
-USER modelionn
+USER zkml
 
 EXPOSE 8000
 

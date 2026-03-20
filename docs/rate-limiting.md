@@ -1,6 +1,6 @@
 # Rate Limiting Tuning Guide
 
-The Modelionn registry uses a sliding-window rate limiter with Redis (primary) and in-memory (fallback) backends.
+The ZKML registry uses a sliding-window rate limiter with Redis (primary) and in-memory (fallback) backends.
 
 ## Architecture
 
@@ -12,13 +12,13 @@ Request → RateLimitMiddleware
 
 ## Configuration
 
-All settings are via environment variables prefixed with `MODELIONN_`:
+All settings are via environment variables prefixed with `ZKML_`:
 
 | Variable                          | Default | Description                                                                    |
 | --------------------------------- | ------- | ------------------------------------------------------------------------------ |
-| `MODELIONN_RATE_LIMIT_PER_MINUTE` | `60`    | Max requests per client per minute                                             |
-| `MODELIONN_RATE_LIMIT_BURST`      | `10`    | Extra burst allowance above the per-minute rate                                |
-| `MODELIONN_TRUSTED_PROXIES`       | `""`    | Comma-separated CIDR blocks for proxy trust (e.g., `10.0.0.0/8,172.16.0.0/12`) |
+| `ZKML_RATE_LIMIT_PER_MINUTE` | `60`    | Max requests per client per minute                                             |
+| `ZKML_RATE_LIMIT_BURST`      | `10`    | Extra burst allowance above the per-minute rate                                |
+| `ZKML_TRUSTED_PROXIES`       | `""`    | Comma-separated CIDR blocks for proxy trust (e.g., `10.0.0.0/8,172.16.0.0/12`) |
 
 ## Exempt Paths
 
@@ -38,7 +38,7 @@ When running behind a reverse proxy (nginx, Cloudflare, AWS ALB):
 
 ```bash
 # Trust AWS ALB and internal Docker network
-MODELIONN_TRUSTED_PROXIES="10.0.0.0/8,172.16.0.0/12"
+ZKML_TRUSTED_PROXIES="10.0.0.0/8,172.16.0.0/12"
 ```
 
 **IP extraction logic:** The middleware walks `X-Forwarded-For` entries right-to-left, skipping any IP in the trusted CIDR list, and uses the first non-trusted IP as the client identity.
@@ -50,8 +50,8 @@ MODELIONN_TRUSTED_PROXIES="10.0.0.0/8,172.16.0.0/12"
 ### High-Traffic APIs (>1000 req/s)
 
 ```bash
-MODELIONN_RATE_LIMIT_PER_MINUTE=300
-MODELIONN_RATE_LIMIT_BURST=50
+ZKML_RATE_LIMIT_PER_MINUTE=300
+ZKML_RATE_LIMIT_BURST=50
 ```
 
 ### Proof Submission Endpoints

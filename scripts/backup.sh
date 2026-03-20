@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ── Modelionn backup script ─────────────────────────────────
+# ── ZKML backup script ─────────────────────────────────
 # Usage:
 #   ./scripts/backup.sh                   # backup to ./backups/
 #   ./scripts/backup.sh /path/to/dir      # backup to custom dir
@@ -13,21 +13,21 @@ COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.yml}"
 
 mkdir -p "$BACKUP_DIR"
 
-echo "==> Modelionn backup — $TIMESTAMP"
+echo "==> ZKML backup — $TIMESTAMP"
 
 # --- PostgreSQL (production) ---
 if docker compose -f "$COMPOSE_FILE" ps postgres 2>/dev/null | grep -q running; then
   echo "  Backing up PostgreSQL..."
   docker compose -f "$COMPOSE_FILE" exec -T postgres \
-    pg_dump -U modelionn -Fc modelionn \
+    pg_dump -U zkml -Fc zkml \
     > "$BACKUP_DIR/pg_${TIMESTAMP}.dump"
   echo "  ✓ PostgreSQL → $BACKUP_DIR/pg_${TIMESTAMP}.dump"
 fi
 
 # --- SQLite (development) ---
-if [ -f data/modelionn.db ]; then
+if [ -f data/zkml.db ]; then
   echo "  Backing up SQLite..."
-  sqlite3 data/modelionn.db ".backup '$BACKUP_DIR/sqlite_${TIMESTAMP}.db'"
+  sqlite3 data/zkml.db ".backup '$BACKUP_DIR/sqlite_${TIMESTAMP}.db'"
   echo "  ✓ SQLite → $BACKUP_DIR/sqlite_${TIMESTAMP}.db"
 fi
 

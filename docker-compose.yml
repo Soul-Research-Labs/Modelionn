@@ -4,12 +4,12 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - MODELIONN_IPFS_API_URL=http://ipfs:5001
-      - MODELIONN_DATABASE_URL=sqlite+aiosqlite:///./data/modelionn.db
-      - MODELIONN_REDIS_URL=redis://redis:6379/0
-      - MODELIONN_CELERY_BROKER_URL=redis://redis:6379/1
-      - MODELIONN_CELERY_RESULT_BACKEND=redis://redis:6379/2
-      - MODELIONN_CORS_ORIGINS=http://localhost:3000,http://web:3000
+      - ZKML_IPFS_API_URL=http://ipfs:5001
+      - ZKML_DATABASE_URL=sqlite+aiosqlite:///./data/zkml.db
+      - ZKML_REDIS_URL=redis://redis:6379/0
+      - ZKML_CELERY_BROKER_URL=redis://redis:6379/1
+      - ZKML_CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - ZKML_CORS_ORIGINS=http://localhost:3000,http://web:3000
     volumes:
       - ./data:/app/data
     depends_on:
@@ -34,12 +34,12 @@ services:
     image: redis:7.2-alpine
     ports:
       - "6379:6379"
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-modelionn_dev}
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-zkml_dev}
     volumes:
       - redis_data:/data
     healthcheck:
       test:
-        ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-modelionn_dev}", "ping"]
+        ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-zkml_dev}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -48,11 +48,11 @@ services:
     build: .
     command: celery -A registry.tasks.celery_app worker --loglevel=info --concurrency=2 -Q default,proof_dispatch
     environment:
-      - MODELIONN_REDIS_URL=redis://redis:6379/0
-      - MODELIONN_CELERY_BROKER_URL=redis://redis:6379/1
-      - MODELIONN_CELERY_RESULT_BACKEND=redis://redis:6379/2
-      - MODELIONN_DATABASE_URL=sqlite+aiosqlite:///./data/modelionn.db
-      - MODELIONN_IPFS_API_URL=http://ipfs:5001
+      - ZKML_REDIS_URL=redis://redis:6379/0
+      - ZKML_CELERY_BROKER_URL=redis://redis:6379/1
+      - ZKML_CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - ZKML_DATABASE_URL=sqlite+aiosqlite:///./data/zkml.db
+      - ZKML_IPFS_API_URL=http://ipfs:5001
     volumes:
       - ./data:/app/data
     depends_on:
@@ -81,10 +81,10 @@ services:
     build: .
     command: celery -A registry.tasks.celery_app beat --loglevel=info
     environment:
-      - MODELIONN_REDIS_URL=redis://redis:6379/0
-      - MODELIONN_CELERY_BROKER_URL=redis://redis:6379/1
-      - MODELIONN_CELERY_RESULT_BACKEND=redis://redis:6379/2
-      - MODELIONN_DATABASE_URL=sqlite+aiosqlite:///./data/modelionn.db
+      - ZKML_REDIS_URL=redis://redis:6379/0
+      - ZKML_CELERY_BROKER_URL=redis://redis:6379/1
+      - ZKML_CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - ZKML_DATABASE_URL=sqlite+aiosqlite:///./data/zkml.db
     volumes:
       - ./data:/app/data
     depends_on:
@@ -96,8 +96,8 @@ services:
     command: celery -A registry.tasks.celery_app flower --port=5555
     # Flower admin UI NOT exposed publicly — access only via docker exec or internal network
     environment:
-      - MODELIONN_CELERY_BROKER_URL=redis://:${REDIS_PASSWORD:-modelionn_dev}@redis:6379/1
-      - MODELIONN_CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD:-modelionn_dev}@redis:6379/2
+      - ZKML_CELERY_BROKER_URL=redis://:${REDIS_PASSWORD:-zkml_dev}@redis:6379/1
+      - ZKML_CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD:-zkml_dev}@redis:6379/2
     depends_on:
       - redis
 
@@ -167,7 +167,7 @@ services:
     image: oliver006/redis_exporter:v1.61.0
     environment:
       - REDIS_ADDR=redis://redis:6379
-      - REDIS_PASSWORD=${REDIS_PASSWORD:-modelionn_dev}
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-zkml_dev}
     depends_on:
       redis:
         condition: service_healthy

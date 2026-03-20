@@ -13,7 +13,7 @@ Usage:
       --poll-interval 1.0
 
 Auth (optional):
-    MODELIONN_HOTKEY=... MODELIONN_SIGNATURE=... python3 scripts/benchmark_proof_pipeline.py ...
+    ZKML_HOTKEY=... ZKML_SIGNATURE=... python3 scripts/benchmark_proof_pipeline.py ...
 """
 
 from __future__ import annotations
@@ -76,8 +76,8 @@ def _emit_summary(summary: dict[str, Any], output_format: str) -> None:
 
 
 def _headers() -> dict[str, str]:
-    hotkey = os.environ.get("MODELIONN_HOTKEY", "")
-    signature = os.environ.get("MODELIONN_SIGNATURE", "")
+    hotkey = os.environ.get("ZKML_HOTKEY", "")
+    signature = os.environ.get("ZKML_SIGNATURE", "")
     if not hotkey or not signature:
         return {}
 

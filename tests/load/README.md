@@ -1,6 +1,6 @@
 # Load Tests
 
-Load tests for the Modelionn Registry API using [Locust](https://locust.io/).
+Load tests for the ZKML Registry API using [Locust](https://locust.io/).
 
 ## Setup
 
@@ -24,7 +24,7 @@ locust -f tests/load/locustfile.py \
   --csv results
 
 # With authentication (provide hotkey for write endpoints)
-MODELIONN_HOTKEY=5FYourKey MODELIONN_SIGN_KEY=your-sign-key \
+ZKML_HOTKEY=5FYourKey ZKML_SIGN_KEY=your-sign-key \
   locust -f tests/load/locustfile.py --host http://localhost:8000
 ```
 

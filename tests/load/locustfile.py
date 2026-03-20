@@ -1,4 +1,4 @@
-"""Locust load tests for the Modelionn Registry API.
+"""Locust load tests for the ZKML Registry API.
 
 Usage:
     locust -f tests/load/locustfile.py --host http://localhost:8000
@@ -19,8 +19,8 @@ from locust import HttpUser, LoadTestShape, between, task
 
 
 def _auth_headers() -> dict[str, str]:
-    """Generate authentication headers if MODELIONN_HOTKEY is set."""
-    hotkey = os.environ.get("MODELIONN_HOTKEY", "")
+    """Generate authentication headers if ZKML_HOTKEY is set."""
+    hotkey = os.environ.get("ZKML_HOTKEY", "")
     if not hotkey:
         return {}
     nonce = str(int(time.time()))

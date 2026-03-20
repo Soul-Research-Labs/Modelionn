@@ -1,4 +1,4 @@
-"""FastAPI application — Modelionn Registry."""
+"""FastAPI application — ZKML Registry."""
 
 from __future__ import annotations
 
@@ -36,16 +36,16 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
             logger.info("IPFS health check passed")
     except Exception:
         logger.warning("IPFS unavailable at startup — uploads will fail until IPFS is reachable")
-    logger.info("Modelionn registry started  network=%s  netuid=%d", settings.bt_network, settings.bt_netuid)
+    logger.info("ZKML registry started  network=%s  netuid=%d", settings.bt_network, settings.bt_netuid)
     yield
     # Graceful shutdown
-    logger.info("Modelionn registry shutting down…")
+    logger.info("ZKML registry shutting down…")
     await engine.dispose()
-    logger.info("Modelionn registry stopped")
+    logger.info("ZKML registry stopped")
 
 
 app = FastAPI(
-    title="Modelionn Registry",
+    title="ZKML Registry",
     description="GPU-Accelerated ZK Prover Network on Bittensor",
     version="0.2.0",
     lifespan=lifespan,

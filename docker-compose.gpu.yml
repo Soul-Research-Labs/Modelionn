@@ -11,7 +11,7 @@ services:
       args:
         CUDA_ENABLED: "1"
     environment:
-      - MODELIONN_GPU_BACKEND=cuda
+      - ZKML_GPU_BACKEND=cuda
     deploy:
       resources:
         reservations:

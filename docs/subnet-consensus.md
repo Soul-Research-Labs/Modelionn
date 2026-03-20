@@ -1,6 +1,6 @@
 # Subnet Consensus & Voting Rules
 
-How validation, rewards, and consensus work on the Modelionn Bittensor subnet.
+How validation, rewards, and consensus work on the ZKML Bittensor subnet.
 
 ## Architecture
 

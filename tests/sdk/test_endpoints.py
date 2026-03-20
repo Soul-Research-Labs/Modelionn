@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from sdk.client import ModelionnClient
+from sdk.client import ZKMLClient
 from sdk.errors import NotFoundError, ServerError
 
 
@@ -27,7 +27,7 @@ def _mock_response(
 
 
 def _client_with_mock(mock_resp, **kwargs):
-    """Return a ModelionnClient whose HTTP layer returns mock_resp."""
+    """Return a ZKMLClient whose HTTP layer returns mock_resp."""
     # Auto-provide a dummy sign_fn when hotkey is given (auth requires it)
     if "hotkey" in kwargs and "sign_fn" not in kwargs:
         kwargs["sign_fn"] = lambda msg: "deadbeef"
@@ -37,7 +37,7 @@ def _client_with_mock(mock_resp, **kwargs):
     else:
         mock_http.request.return_value = mock_resp
     mock_http.is_closed = False
-    return ModelionnClient(max_retries=0, **kwargs), mock_http
+    return ZKMLClient(max_retries=0, **kwargs), mock_http
 
 
 # ── list_circuits ────────────────────────────────────────────

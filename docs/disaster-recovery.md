@@ -1,4 +1,4 @@
-# Disaster Recovery Plan — Modelionn
+# Disaster Recovery Plan — ZKML
 
 ## 1. Recovery Objectives
 
@@ -15,8 +15,8 @@
 
 The `backup` service in `docker-compose.prod.yml` runs daily at **02:00 UTC** using `scripts/backup.sh`.
 
-- **Database**: Full `pg_dump` with custom format (`-Fc`) to `/backups/modelionn_YYYYMMDD_HHMMSS.sql`
-- **Retention**: 7 days (configurable via `MODELIONN_BACKUP_RETAIN_DAYS`)
+- **Database**: Full `pg_dump` with custom format (`-Fc`) to `/backups/zkml_YYYYMMDD_HHMMSS.sql`
+- **Retention**: 7 days (configurable via `ZKML_BACKUP_RETAIN_DAYS`)
 - **Volume**: `backup_data` Docker named volume
 
 ### 2.2 Manual Backup
@@ -35,12 +35,12 @@ Copy backups to an off-site location for geographic redundancy:
 
 ```bash
 # Example: sync to S3
-aws s3 sync /var/lib/docker/volumes/modelionn_backup_data/_data/ \
-  s3://your-bucket/modelionn-backups/ --storage-class STANDARD_IA
+aws s3 sync /var/lib/docker/volumes/zkml_backup_data/_data/ \
+  s3://your-bucket/zkml-backups/ --storage-class STANDARD_IA
 
 # Example: sync to another server
-rsync -az /var/lib/docker/volumes/modelionn_backup_data/_data/ \
-  backup-host:/backups/modelionn/
+rsync -az /var/lib/docker/volumes/zkml_backup_data/_data/ \
+  backup-host:/backups/zkml/
 ```
 
 ---
@@ -59,8 +59,8 @@ docker compose -f docker-compose.prod.yml stop registry worker beat web
 
 # 2. Restore from latest backup
 docker compose -f docker-compose.prod.yml exec -T postgres \
-  pg_restore -U modelionn -d modelionn --clean --if-exists \
-  < /backups/modelionn_LATEST.sql
+  pg_restore -U zkml -d zkml --clean --if-exists \
+  < /backups/zkml_LATEST.sql
 
 # 3. Run migrations to ensure schema is current
 docker compose -f docker-compose.prod.yml exec registry alembic upgrade head
@@ -79,7 +79,7 @@ docker compose -f docker-compose.prod.yml up -d registry worker beat web
 # 1. Provision a new host with Docker 24+
 
 # 2. Clone the repository
-git clone <repo-url> && cd Modelionn
+git clone <repo-url> && cd ZKML
 
 # 3. Restore environment config
 cp .env.prod.example .env
@@ -93,7 +93,7 @@ docker compose -f docker-compose.prod.yml ps
 
 # 6. Restore database from off-site backup
 cat /path/to/backup.sql | docker compose -f docker-compose.prod.yml exec -T \
-  postgres pg_restore -U modelionn -d modelionn --clean --if-exists
+  postgres pg_restore -U zkml -d zkml --clean --if-exists
 
 # 7. Run migrations
 docker compose -f docker-compose.prod.yml exec registry alembic upgrade head

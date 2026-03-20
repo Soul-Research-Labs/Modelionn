@@ -1,4 +1,4 @@
-"""Modelionn Prover Miner — GPU-accelerated ZK proof generation.
+"""ZKML Prover Miner — GPU-accelerated ZK proof generation.
 
 Miners earn TAO by:
 1. Generating ZK proofs for circuit partitions dispatched by validators
@@ -78,7 +78,7 @@ class MinerNeuron(BaseNeuron):
     def _init_prover(self) -> None:
         """Initialize the Rust/Python prover engine and detect GPUs."""
         try:
-            from prover.python.modelionn_prover import ProverEngine
+            from prover.python.zkml_prover import ProverEngine
             self._prover = ProverEngine()
             devices = self._prover.gpu_devices()
             if devices:
@@ -137,7 +137,7 @@ class MinerNeuron(BaseNeuron):
                 self._failed_proofs += 1
                 return synapse
 
-            from prover.python.modelionn_prover import (
+            from prover.python.zkml_prover import (
                 ProverEngine, CircuitData, WitnessData, ProofSystem, CircuitType,
             )
             from registry.storage.ipfs import IPFSStorage
@@ -253,7 +253,7 @@ class MinerNeuron(BaseNeuron):
         if synapse.include_benchmark and self._prover:
             # Run quick benchmark (1K constraint test circuit)
             try:
-                from prover.python.modelionn_prover import CircuitData, WitnessData, ProofSystem, CircuitType
+                from prover.python.zkml_prover import CircuitData, WitnessData, ProofSystem, CircuitType
                 bench_circuit = CircuitData(
                     id="benchmark", name="benchmark", proof_system=ProofSystem.GROTH16,
                     circuit_type=CircuitType.GENERAL, num_constraints=1000,
@@ -288,7 +288,7 @@ class MinerNeuron(BaseNeuron):
                 synapse.error = "Invalid verification_key_cid format"
                 return synapse
 
-            from prover.python.modelionn_prover import (
+            from prover.python.zkml_prover import (
                 ProverEngine, CircuitData, ProofResult, ProofSystem, CircuitType,
             )
             from registry.storage.ipfs import IPFSStorage
@@ -378,10 +378,10 @@ class MinerNeuron(BaseNeuron):
     def _report_stats_to_registry(self) -> None:
         """Best-effort report of miner stats to the registry API."""
         try:
-            from sdk.client import ModelionnClient
+            from sdk.client import ZKMLClient
             from registry.core.config import settings
 
-            with ModelionnClient(
+            with ZKMLClient(
                 registry_url=settings.registry_url,
                 hotkey=self.wallet.hotkey.ss58_address,
             ) as client:

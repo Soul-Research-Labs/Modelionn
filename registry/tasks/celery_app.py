@@ -12,7 +12,7 @@ from celery.schedules import crontab
 from registry.core.config import settings
 
 app = Celery(
-    "modelionn",
+    "zkml",
     broker=settings.celery_broker_url,
     backend=settings.celery_result_backend,
 )

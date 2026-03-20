@@ -37,7 +37,7 @@ describe("SignInPage", () => {
   it("renders wallet sign-in form", () => {
     render(<SignInPage />);
 
-    expect(screen.getByText("Sign in to Modelionn")).toBeTruthy();
+    expect(screen.getByText("Sign in to ZKML")).toBeTruthy();
     expect(screen.getByLabelText("Hotkey (SS58 Address)")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Connect Wallet" })).toBeTruthy();
   });

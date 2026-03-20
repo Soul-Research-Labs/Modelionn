@@ -1,4 +1,4 @@
-"""Modelionn Python SDK — ZK prover network client."""
+"""ZKML Python SDK — ZK prover network client."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from typing import Any
 import httpx
 
 from sdk.errors import (
-    ModelionnError,
+    ZKMLError,
     RateLimitError,
     raise_for_status,
 )
@@ -30,12 +30,12 @@ def _sleep_backoff(attempt: int, base: float = _DEFAULT_BACKOFF_BASE, cap: float
     time.sleep(delay)
 
 
-class ModelionnClient:
-    """Client for the Modelionn ZK Prover Network API.
+class ZKMLClient:
+    """Client for the ZKML ZK Prover Network API.
 
     Usage::
 
-        client = ModelionnClient("http://localhost:8000")
+        client = ZKMLClient("http://localhost:8000")
         circuit = client.upload_circuit(name="test", version="1.0", ...)
         job = client.request_proof(circuit_id=1, witness_cid="Qm...")
         status = client.get_proof_job(job["task_id"])
@@ -68,7 +68,7 @@ class ModelionnClient:
             )
         return self._http
 
-    def __enter__(self) -> ModelionnClient:
+    def __enter__(self) -> ZKMLClient:
         return self
 
     def __exit__(self, *args: Any) -> None:
@@ -93,10 +93,10 @@ class ModelionnClient:
         if self._sign_fn:
             sig = self._sign_fn(message)
         else:
-            raise ModelionnError(
+            raise ZKMLError(
                 "sign_fn is required for authenticated requests. "
                 "Provide a signing function (e.g. bittensor Keypair.sign) when "
-                "constructing ModelionnClient."
+                "constructing ZKMLClient."
             )
         return {
             "x-hotkey": self._hotkey,
@@ -143,11 +143,11 @@ class ModelionnClient:
                 if attempt < self._max_retries:
                     _sleep_backoff(attempt, self._backoff_base, self._backoff_cap)
                     continue
-                raise ModelionnError(f"Connection failed after {self._max_retries + 1} attempts: {exc}") from exc
-            except (ModelionnError, RateLimitError):
+                raise ZKMLError(f"Connection failed after {self._max_retries + 1} attempts: {exc}") from exc
+            except (ZKMLError, RateLimitError):
                 raise
         # Should not reach here, but just in case
-        raise ModelionnError(f"Request failed after {self._max_retries + 1} attempts") from last_exc
+        raise ZKMLError(f"Request failed after {self._max_retries + 1} attempts") from last_exc
 
     # ── ZK Circuits ────────────────────────────────────────────
 
@@ -495,7 +495,7 @@ class ModelionnClient:
         proof = self.get_proof(proof_id)
         cid = proof.get("proof_data_cid")
         if not cid:
-            raise ModelionnError(f"Proof {proof_id} has no proof_data_cid")
+            raise ZKMLError(f"Proof {proof_id} has no proof_data_cid")
 
         url = f"{self._url}/proofs/{proof_id}/download"
         client = self._get_http(timeout=300)

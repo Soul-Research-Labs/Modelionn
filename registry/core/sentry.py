@@ -12,9 +12,9 @@ def _get_version() -> str:
     """Resolve package version from importlib.metadata."""
     try:
         from importlib.metadata import version
-        return f"modelionn@{version('modelionn')}"
+        return f"zkml@{version('zkml')}"
     except Exception:
-        return "modelionn@0.0.0-unknown"
+        return "zkml@0.0.0-unknown"
 
 
 def init_sentry() -> None:

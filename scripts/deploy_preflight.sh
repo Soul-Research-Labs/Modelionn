@@ -52,13 +52,13 @@ check_not_default_secret() {
   lower=$(echo "$value" | tr '[:upper:]' '[:lower:]')
 
   case "$lower" in
-    changeme|change-me|default|secret|password|modelionn-secret|dev-secret|test-secret)
+    changeme|change-me|default|secret|password|zkml-secret|dev-secret|test-secret)
       fail "$key appears to use a default/insecure value"
       ;;
   esac
 }
 
-echo "==> Modelionn production preflight"
+echo "==> ZKML production preflight"
 
 require_cmd docker
 if ! docker compose version >/dev/null 2>&1; then
@@ -80,19 +80,19 @@ set +a
 
 check_required_var POSTGRES_PASSWORD
 check_required_var REDIS_PASSWORD
-check_required_var MODELIONN_SECRET_KEY
+check_required_var ZKML_SECRET_KEY
 check_required_var NEXTAUTH_SECRET
 check_required_var FLOWER_PASSWORD
 check_required_var CORS_ORIGINS
 check_required_var NEXTAUTH_URL
 pass "Required environment variables are set"
 
-check_secret_length MODELIONN_SECRET_KEY 32
+check_secret_length ZKML_SECRET_KEY 32
 check_secret_length NEXTAUTH_SECRET 32
 check_secret_length POSTGRES_PASSWORD 16
 check_secret_length REDIS_PASSWORD 16
 check_secret_length FLOWER_PASSWORD 12
-check_not_default_secret MODELIONN_SECRET_KEY
+check_not_default_secret ZKML_SECRET_KEY
 check_not_default_secret NEXTAUTH_SECRET
 pass "Secret strength checks passed"
 
@@ -120,7 +120,7 @@ fi
 
 # ── Docker image security scan ──────────────────────────────
 if command -v trivy >/dev/null 2>&1; then
-  IMAGE_TAG="${MODELIONN_IMAGE_TAG:-modelionn:latest}"
+  IMAGE_TAG="${ZKML_IMAGE_TAG:-zkml:latest}"
   echo "==> Scanning Docker image $IMAGE_TAG with Trivy..."
   if trivy image --severity HIGH,CRITICAL --exit-code 1 --quiet "$IMAGE_TAG" 2>/dev/null; then
     pass "No HIGH/CRITICAL CVEs detected in $IMAGE_TAG"

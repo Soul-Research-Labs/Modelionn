@@ -1,4 +1,4 @@
-"""Bittensor Synapse protocol definitions for the Modelionn ZK prover subnet.
+"""Bittensor Synapse protocol definitions for the ZKML ZK prover subnet.
 
 These define the wire format for miner ←→ validator communication
 in the zero-knowledge proof generation network.

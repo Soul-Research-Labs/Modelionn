@@ -1,4 +1,4 @@
-"""Modelionn API middleware stack.
+"""ZKML API middleware stack.
 
 Middleware is applied in reverse order (outermost → innermost):
 1. RequestIDMiddleware — inject X-Request-ID on every request

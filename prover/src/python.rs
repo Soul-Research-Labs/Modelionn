@@ -1,11 +1,11 @@
-//! PyO3 Python bindings for the Modelionn prover engine.
+//! PyO3 Python bindings for the ZKML prover engine.
 
 #[cfg(feature = "python")]
 use pyo3::prelude::*;
 
 #[cfg(feature = "python")]
 #[pymodule]
-fn modelionn_prover(m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn zkml_prover(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyProverEngine>()?;
     m.add_class::<PyCircuit>()?;
     m.add_class::<PyWitness>()?;

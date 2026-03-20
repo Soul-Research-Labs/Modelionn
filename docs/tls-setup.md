@@ -1,6 +1,6 @@
-# TLS / HTTPS Setup Guide — Modelionn
+# TLS / HTTPS Setup Guide — ZKML
 
-This guide covers securing Modelionn with TLS using a reverse proxy.
+This guide covers securing ZKML with TLS using a reverse proxy.
 
 ---
 
@@ -38,7 +38,7 @@ sudo certbot certonly --nginx -d your-domain.com -d api.your-domain.com
 
 ### 2.3 Nginx Site Configuration
 
-Create `/etc/nginx/sites-available/modelionn`:
+Create `/etc/nginx/sites-available/zkml`:
 
 ```nginx
 # Redirect HTTP → HTTPS
@@ -130,7 +130,7 @@ server {
 ### 2.4 Enable the Site
 
 ```bash
-sudo ln -s /etc/nginx/sites-available/modelionn /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/zkml /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl reload nginx
 ```
@@ -230,7 +230,7 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx/modelionn.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/zkml.conf:/etc/nginx/conf.d/default.conf:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
     depends_on:
       - registry

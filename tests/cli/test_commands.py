@@ -16,7 +16,7 @@ runner = CliRunner()
 # ── Helpers ──────────────────────────────────────────────────
 
 def _mock_client(**methods) -> MagicMock:
-    """Return a MagicMock for ModelionnClient with given method return values."""
+    """Return a MagicMock for ZKMLClient with given method return values."""
     client = MagicMock()
     for name, retval in methods.items():
         getattr(client, name).return_value = retval
@@ -294,9 +294,9 @@ class TestNetworkStats:
 
 class TestAuth:
     def test_auth_no_config(self, tmp_path, monkeypatch):
-        monkeypatch.setattr("cli.main._CONFIG_PATH", tmp_path / ".modelionn.toml")
-        monkeypatch.delenv("MODELIONN_HOTKEY", raising=False)
-        monkeypatch.delenv("MODELIONN_REGISTRY", raising=False)
+        monkeypatch.setattr("cli.main._CONFIG_PATH", tmp_path / ".zkml.toml")
+        monkeypatch.delenv("ZKML_HOTKEY", raising=False)
+        monkeypatch.delenv("ZKML_REGISTRY", raising=False)
 
         result = runner.invoke(app, ["auth"])
         assert result.exit_code == 0
@@ -307,7 +307,7 @@ class TestAuth:
 
 class TestLogin:
     def test_login_saves_config(self, tmp_path, monkeypatch):
-        config_path = tmp_path / ".modelionn.toml"
+        config_path = tmp_path / ".zkml.toml"
         monkeypatch.setattr("cli.main._CONFIG_PATH", config_path)
 
         result = runner.invoke(app, [
@@ -321,26 +321,26 @@ class TestLogin:
         assert "http://test-registry:8000" in content
 
     def test_login_rejects_bad_url(self, tmp_path, monkeypatch):
-        monkeypatch.setattr("cli.main._CONFIG_PATH", tmp_path / ".modelionn.toml")
+        monkeypatch.setattr("cli.main._CONFIG_PATH", tmp_path / ".zkml.toml")
 
         result = runner.invoke(app, ["login", "--registry", "not-a-url"])
         assert result.exit_code == 1
 
     def test_login_rejects_short_hotkey(self, tmp_path, monkeypatch):
-        monkeypatch.setattr("cli.main._CONFIG_PATH", tmp_path / ".modelionn.toml")
+        monkeypatch.setattr("cli.main._CONFIG_PATH", tmp_path / ".zkml.toml")
 
         result = runner.invoke(app, ["login", "--hotkey", "abc"])
         assert result.exit_code == 1
 
     def test_login_no_args(self, tmp_path, monkeypatch):
-        monkeypatch.setattr("cli.main._CONFIG_PATH", tmp_path / ".modelionn.toml")
+        monkeypatch.setattr("cli.main._CONFIG_PATH", tmp_path / ".zkml.toml")
 
         result = runner.invoke(app, ["login"])
         assert result.exit_code == 1
 
     def test_login_rejects_non_ss58_hotkey(self, tmp_path, monkeypatch):
         """Hotkeys with invalid characters (non-base58) should be rejected."""
-        monkeypatch.setattr("cli.main._CONFIG_PATH", tmp_path / ".modelionn.toml")
+        monkeypatch.setattr("cli.main._CONFIG_PATH", tmp_path / ".zkml.toml")
 
         result = runner.invoke(app, [
             "login", "--hotkey", "0OIl0OIl0OIl0OIl0OIl0OIl0OIl0OIl0OIl0OIl0OIl0O",
@@ -517,7 +517,7 @@ class TestApiKeyRevoke:
 
 class TestAuditList:
     @patch("cli.main._default_registry", return_value="http://localhost:8000")
-    @patch("sdk.client.ModelionnClient._request_with_retry")
+    @patch("sdk.client.ZKMLClient._request_with_retry")
     def test_audit_list_table(self, mock_req, _):
         mock_resp = MagicMock()
         mock_resp.json.return_value = {
@@ -534,7 +534,7 @@ class TestAuditList:
         assert "circuit.uploaded" in result.output
 
     @patch("cli.main._default_registry", return_value="http://localhost:8000")
-    @patch("sdk.client.ModelionnClient._request_with_retry")
+    @patch("sdk.client.ZKMLClient._request_with_retry")
     def test_audit_list_json(self, mock_req, _):
         mock_resp = MagicMock()
         mock_resp.json.return_value = {"items": []}
@@ -544,7 +544,7 @@ class TestAuditList:
         assert result.exit_code == 0
 
     @patch("cli.main._default_registry", return_value="http://localhost:8000")
-    @patch("sdk.client.ModelionnClient._request_with_retry")
+    @patch("sdk.client.ZKMLClient._request_with_retry")
     def test_audit_list_with_filters(self, mock_req, _):
         mock_resp = MagicMock()
         mock_resp.json.return_value = {"items": []}

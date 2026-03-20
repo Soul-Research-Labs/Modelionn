@@ -1,5 +1,5 @@
 /**
- * Typed API client for the Modelionn Registry backend.
+ * Typed API client for the ZKML Registry backend.
  * All methods return typed responses; errors are thrown as ApiError.
  */
 

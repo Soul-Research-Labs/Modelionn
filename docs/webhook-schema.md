@@ -1,6 +1,6 @@
 # Webhook Event Schema
 
-Modelionn delivers events to your HTTPS endpoints via POST with JSON payloads signed using HMAC-SHA256.
+ZKML delivers events to your HTTPS endpoints via POST with JSON payloads signed using HMAC-SHA256.
 
 ---
 
@@ -22,8 +22,8 @@ Every webhook delivery wraps the event data in a standard envelope:
 | Header                  | Description                                                                   |
 | ----------------------- | ----------------------------------------------------------------------------- |
 | `Content-Type`          | `application/json`                                                            |
-| `X-Modelionn-Signature` | `sha256=<hex-digest>` — HMAC-SHA256 of the raw body using your webhook secret |
-| `X-Modelionn-Event`     | Event type string (e.g. `proof.completed`)                                    |
+| `X-ZKML-Signature` | `sha256=<hex-digest>` — HMAC-SHA256 of the raw body using your webhook secret |
+| `X-ZKML-Event`     | Event type string (e.g. `proof.completed`)                                    |
 
 ### Verifying Signatures
 
@@ -155,19 +155,19 @@ Fired when a prover fails to heartbeat within the eviction window.
 
 ```bash
 # Create
-modelionn webhooks create \
+zkml webhooks create \
     --url https://example.com/hook \
     --label "Production" \
     --events "proof.completed,proof.failed"
 
 # List
-modelionn webhooks list
+zkml webhooks list
 
 # Update
-modelionn webhooks update 42 --active
+zkml webhooks update 42 --active
 
 # Delete
-modelionn webhooks delete 42
+zkml webhooks delete 42
 ```
 
 ### API
@@ -196,7 +196,7 @@ After **5 consecutive failures**, the webhook is automatically disabled and logg
 
 ### Dead-Letter Queue
 
-Permanently failed deliveries are logged to `modelionn.webhook.dlq` at ERROR level. Operators can replay them by parsing the DLQ log entries.
+Permanently failed deliveries are logged to `zkml.webhook.dlq` at ERROR level. Operators can replay them by parsing the DLQ log entries.
 
 ### Timeouts
 

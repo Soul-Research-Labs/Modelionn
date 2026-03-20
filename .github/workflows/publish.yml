@@ -29,4 +29,4 @@ jobs:
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         # Uses OIDC trusted publishing — no API token needed.
-        # Configure at https://pypi.org/manage/project/modelionn/settings/publishing/
+        # Configure at https://pypi.org/manage/project/zkml/settings/publishing/

@@ -37,7 +37,7 @@ export function Sidebar() {
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-white font-bold text-sm">
           M
         </div>
-        <span className="text-lg font-semibold tracking-tight">Modelionn</span>
+        <span className="text-lg font-semibold tracking-tight">ZKML</span>
       </div>
 
       {/* Navigation */}
@@ -66,7 +66,7 @@ export function Sidebar() {
 
       {/* Footer */}
       <div className="border-t border-gray-200 p-4">
-        <p className="text-xs text-gray-400">Modelionn v0.2.0</p>
+        <p className="text-xs text-gray-400">ZKML v0.2.0</p>
         <p className="text-xs text-gray-400">ZK Prover Network on Bittensor</p>
       </div>
     </aside>

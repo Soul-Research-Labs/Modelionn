@@ -5,27 +5,27 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_DB: modelionn
-      POSTGRES_USER: modelionn
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-modelionn_dev}
+      POSTGRES_DB: zkml
+      POSTGRES_USER: zkml
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-zkml_dev}
     volumes:
       - pg_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U modelionn"]
+      test: ["CMD-SHELL", "pg_isready -U zkml"]
       interval: 10s
       timeout: 5s
       retries: 3
 
   registry:
     environment:
-      - MODELIONN_DATABASE_URL=postgresql+asyncpg://modelionn:${POSTGRES_PASSWORD:-modelionn_dev}@postgres:5432/modelionn
+      - ZKML_DATABASE_URL=postgresql+asyncpg://zkml:${POSTGRES_PASSWORD:-zkml_dev}@postgres:5432/zkml
     depends_on:
       postgres:
         condition: service_healthy
 
   worker:
     environment:
-      - MODELIONN_DATABASE_URL=postgresql+asyncpg://modelionn:${POSTGRES_PASSWORD:-modelionn_dev}@postgres:5432/modelionn
+      - ZKML_DATABASE_URL=postgresql+asyncpg://zkml:${POSTGRES_PASSWORD:-zkml_dev}@postgres:5432/zkml
     depends_on:
       postgres:
         condition: service_healthy

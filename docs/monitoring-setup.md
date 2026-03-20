@@ -1,4 +1,4 @@
-# Monitoring Setup Guide — Modelionn
+# Monitoring Setup Guide — ZKML
 
 This guide covers setting up and using the built-in Prometheus, Grafana, and Alertmanager monitoring stack.
 
@@ -53,33 +53,33 @@ The Registry API exposes the following Prometheus metrics at `/metrics`:
 
 | Metric                                    | Type      | Description                                 |
 | ----------------------------------------- | --------- | ------------------------------------------- |
-| `modelionn_http_requests_total`           | Counter   | Total HTTP requests by method, path, status |
-| `modelionn_http_request_duration_seconds` | Histogram | Request latency distribution                |
-| `modelionn_http_requests_in_flight`       | Gauge     | Currently active requests                   |
-| `modelionn_proofs_generated_total`        | Counter   | Total proofs generated                      |
-| `modelionn_proof_queue_depth`             | Gauge     | Jobs waiting in proof queue                 |
-| `modelionn_provers_online`                | Gauge     | Number of online provers                    |
-| `modelionn_proof_timeout_total`           | Counter   | Proof generation timeouts                   |
-| `modelionn_proof_dispatch_failures_total` | Counter   | Failed proof dispatch attempts              |
-| `modelionn_api_key_rejections_total`      | Counter   | Rejected API key attempts                   |
-| `modelionn_nonce_replays_total`           | Counter   | Detected nonce replay attacks               |
-| `modelionn_ipfs_up`                       | Gauge     | IPFS connectivity status                    |
-| `modelionn_celery_workers_online`         | Gauge     | Active Celery workers                       |
+| `zkml_http_requests_total`           | Counter   | Total HTTP requests by method, path, status |
+| `zkml_http_request_duration_seconds` | Histogram | Request latency distribution                |
+| `zkml_http_requests_in_flight`       | Gauge     | Currently active requests                   |
+| `zkml_proofs_generated_total`        | Counter   | Total proofs generated                      |
+| `zkml_proof_queue_depth`             | Gauge     | Jobs waiting in proof queue                 |
+| `zkml_provers_online`                | Gauge     | Number of online provers                    |
+| `zkml_proof_timeout_total`           | Counter   | Proof generation timeouts                   |
+| `zkml_proof_dispatch_failures_total` | Counter   | Failed proof dispatch attempts              |
+| `zkml_api_key_rejections_total`      | Counter   | Rejected API key attempts                   |
+| `zkml_nonce_replays_total`           | Counter   | Detected nonce replay attacks               |
+| `zkml_ipfs_up`                       | Gauge     | IPFS connectivity status                    |
+| `zkml_celery_workers_online`         | Gauge     | Active Celery workers                       |
 
 ### 3.3 Useful PromQL Queries
 
 ```promql
 # Request rate (last 5 minutes)
-rate(modelionn_http_requests_total[5m])
+rate(zkml_http_requests_total[5m])
 
 # P99 latency
-histogram_quantile(0.99, rate(modelionn_http_request_duration_seconds_bucket[5m]))
+histogram_quantile(0.99, rate(zkml_http_request_duration_seconds_bucket[5m]))
 
 # Error rate (5xx responses)
-rate(modelionn_http_requests_total{status=~"5.."}[5m]) / rate(modelionn_http_requests_total[5m])
+rate(zkml_http_requests_total{status=~"5.."}[5m]) / rate(zkml_http_requests_total[5m])
 
 # Proof completion rate
-rate(modelionn_proofs_generated_total[1h])
+rate(zkml_proofs_generated_total[1h])
 ```
 
 ---
@@ -105,7 +105,7 @@ A dashboard is automatically provisioned from `grafana/dashboard.json` with:
 
 ### 4.3 Adding Custom Panels
 
-1. Open Grafana → Dashboards → Modelionn
+1. Open Grafana → Dashboards → ZKML
 2. Click **Add panel**
 3. Select **Prometheus** datasource (auto-configured)
 4. Enter a PromQL query (see section 3.3)
@@ -117,7 +117,7 @@ To persist dashboard changes across deployments:
 
 ```bash
 # Export the current dashboard from Grafana API
-curl -s http://admin:admin@localhost:3001/api/dashboards/uid/modelionn \
+curl -s http://admin:admin@localhost:3001/api/dashboards/uid/zkml \
   | jq '.dashboard' > grafana/dashboard.json
 ```
 
@@ -159,14 +159,14 @@ global:
 receivers:
   - name: "slack-critical"
     slack_configs:
-      - channel: "#modelionn-alerts"
+      - channel: "#zkml-alerts"
         title: "{{ .GroupLabels.alertname }}"
         text: "{{ range .Alerts }}{{ .Annotations.description }}{{ end }}"
         send_resolved: true
 
   - name: "slack-warnings"
     slack_configs:
-      - channel: "#modelionn-warnings"
+      - channel: "#zkml-warnings"
         title: "{{ .GroupLabels.alertname }}"
         text: "{{ range .Alerts }}{{ .Annotations.description }}{{ end }}"
 
@@ -227,7 +227,7 @@ curl http://localhost:9093/api/v2/alerts
 
 ## 7. Trace Correlation (API -> Worker)
 
-Modelionn now propagates `X-Request-ID` from proof request APIs into proof dispatch task logs.
+ZKML now propagates `X-Request-ID` from proof request APIs into proof dispatch task logs.
 
 Use this flow during incident response:
 

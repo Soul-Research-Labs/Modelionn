@@ -1,4 +1,4 @@
-"""Base neuron with Modelionn-specific config and lifecycle."""
+"""Base neuron with ZKML-specific config and lifecycle."""
 
 from __future__ import annotations
 

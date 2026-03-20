@@ -27,7 +27,7 @@ python3 scripts/benchmark_proof_pipeline.py \
 If authenticated endpoints are required:
 
 ```bash
-MODELIONN_HOTKEY=5F... MODELIONN_SIGNATURE=your-signature \
+ZKML_HOTKEY=5F... ZKML_SIGNATURE=your-signature \
 python3 scripts/benchmark_proof_pipeline.py --circuit-id 1 --witness-cid QmYourWitnessCid
 ```
 

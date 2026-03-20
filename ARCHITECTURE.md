@@ -2,7 +2,7 @@
 
 ## Overview
 
-Modelionn is a GPU-accelerated ZK prover network built on Bittensor. It combines decentralised storage (IPFS), cryptographic identity (Bittensor wallets), a Rust GPU prover engine, and a Bittensor subnet that rewards fast, correct, and reliable zero-knowledge proof generation with TAO.
+ZKML is a GPU-accelerated ZK prover network built on Bittensor. It combines decentralised storage (IPFS), cryptographic identity (Bittensor wallets), a Rust GPU prover engine, and a Bittensor subnet that rewards fast, correct, and reliable zero-knowledge proof generation with TAO.
 
 ## Design Principles
 
@@ -91,20 +91,20 @@ Python SDK with connection pooling, automatic retry with backoff, and typed meth
 
 Typer-based CLI with Rich output:
 
-- `modelionn circuits` — List available circuits
-- `modelionn upload-circuit` — Upload a circuit to the registry
-- `modelionn prove` — Request a proof job
-- `modelionn proof-status` — Check proof job status
-- `modelionn proof-jobs` — List proof jobs
-- `modelionn verify-proof` — Verify a proof
-- `modelionn provers` — List network provers
-- `modelionn network-stats` — Show network statistics
-- `modelionn info` — Registry health check
-- `modelionn login` — Save config to `~/.modelionn.toml`
-- `modelionn auth` — Show current authentication status
-- `modelionn org` — Organization management (list, create, members, add/remove member)
-- `modelionn api-key` — API key management (create, list, revoke)
-- `modelionn audit` — Audit log queries with filters
+- `zkml circuits` — List available circuits
+- `zkml upload-circuit` — Upload a circuit to the registry
+- `zkml prove` — Request a proof job
+- `zkml proof-status` — Check proof job status
+- `zkml proof-jobs` — List proof jobs
+- `zkml verify-proof` — Verify a proof
+- `zkml provers` — List network provers
+- `zkml network-stats` — Show network statistics
+- `zkml info` — Registry health check
+- `zkml login` — Save config to `~/.zkml.toml`
+- `zkml auth` — Show current authentication status
+- `zkml org` — Organization management (list, create, members, add/remove member)
+- `zkml api-key` — API key management (create, list, revoke)
+- `zkml audit` — Audit log queries with filters
 - `--json` flag for machine-readable output
 
 ## Subnet (`subnet/`)

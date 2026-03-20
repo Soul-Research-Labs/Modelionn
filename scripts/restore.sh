@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ── Modelionn restore script ────────────────────────────────
+# ── ZKML restore script ────────────────────────────────
 # Usage:
 #   ./scripts/restore.sh pg backups/pg_20260315_120000.dump
 #   ./scripts/restore.sh sqlite backups/sqlite_20260315_120000.db
@@ -28,19 +28,19 @@ else
   echo "  Warning: No checksum file found (${BACKUP_FILE}.sha256). Proceeding without integrity verification."
 fi
 
-echo "==> Modelionn restore — $TYPE from $BACKUP_FILE"
+echo "==> ZKML restore — $TYPE from $BACKUP_FILE"
 
 case "$TYPE" in
   pg)
     echo "  Restoring PostgreSQL..."
     docker compose -f "$COMPOSE_FILE" exec -T postgres \
-      pg_restore -U modelionn -d modelionn --clean --if-exists -Fc < "$BACKUP_FILE"
+      pg_restore -U zkml -d zkml --clean --if-exists -Fc < "$BACKUP_FILE"
     echo "  ✓ PostgreSQL restored."
     ;;
   sqlite)
     echo "  Restoring SQLite..."
-    cp "$BACKUP_FILE" data/modelionn.db
-    echo "  ✓ SQLite restored to data/modelionn.db"
+    cp "$BACKUP_FILE" data/zkml.db
+    echo "  ✓ SQLite restored to data/zkml.db"
     ;;
   redis)
     echo "  Restoring Redis..."

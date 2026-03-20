@@ -13,12 +13,12 @@ from fastapi import APIRouter
 router = APIRouter()
 
 # ── Counter / gauge names ────────────────────────────────────
-API_KEY_REQUESTS = "modelionn_api_key_requests_total"
-API_KEY_REJECTIONS = "modelionn_api_key_rejections_total"
-NONCE_REPLAYS_BLOCKED = "modelionn_nonce_replays_blocked_total"
-PROOFS_GENERATED = "modelionn_proofs_generated_total"
-CIRCUITS_UPLOADED = "modelionn_circuits_uploaded_total"
-PROVERS_ONLINE = "modelionn_provers_online"
+API_KEY_REQUESTS = "zkml_api_key_requests_total"
+API_KEY_REJECTIONS = "zkml_api_key_rejections_total"
+NONCE_REPLAYS_BLOCKED = "zkml_nonce_replays_blocked_total"
+PROOFS_GENERATED = "zkml_proofs_generated_total"
+CIRCUITS_UPLOADED = "zkml_circuits_uploaded_total"
+PROVERS_ONLINE = "zkml_provers_online"
 
 # ── Threadsafe storage ───────────────────────────────────────
 _lock = threading.Lock()

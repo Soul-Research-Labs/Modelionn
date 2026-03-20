@@ -10,8 +10,8 @@
 
 ```bash
 # Clone & start all services
-git clone https://github.com/modelionn/modelionn.git
-cd modelionn
+git clone https://github.com/zkml/zkml.git
+cd zkml
 docker compose up -d --build
 
 # Verify
@@ -34,9 +34,9 @@ Required variables:
 | Variable               | Description                                                             |
 | ---------------------- | ----------------------------------------------------------------------- |
 | `POSTGRES_PASSWORD`    | PostgreSQL database password                                            |
-| `MODELIONN_SECRET_KEY` | API signing secret (min 32 chars, generate with `openssl rand -hex 32`) |
+| `ZKML_SECRET_KEY` | API signing secret (min 32 chars, generate with `openssl rand -hex 32`) |
 | `NEXTAUTH_SECRET`      | NextAuth session signing secret                                         |
-| `CORS_ORIGINS`         | Allowed frontend origins (e.g. `https://app.modelionn.io`)              |
+| `CORS_ORIGINS`         | Allowed frontend origins (e.g. `https://app.zkml.io`)              |
 | `FLOWER_PASSWORD`      | Celery Flower admin password                                            |
 
 ### 2. Start Services
@@ -128,10 +128,10 @@ For production, run behind a reverse proxy (Nginx, Caddy, or Traefik) with TLS t
 ```nginx
 server {
     listen 443 ssl;
-    server_name api.modelionn.io;
+    server_name api.zkml.io;
 
-    ssl_certificate /etc/letsencrypt/live/api.modelionn.io/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/api.modelionn.io/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/api.zkml.io/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/api.zkml.io/privkey.pem;
 
     location / {
         proxy_pass http://localhost:8000;
@@ -195,10 +195,10 @@ ipfs:
 
 | Symptom                            | Fix                                                                        |
 | ---------------------------------- | -------------------------------------------------------------------------- |
-| `RuntimeError: Default secret key` | Set `MODELIONN_SECRET_KEY` env var (min 32 chars)                          |
-| `DATABASE_URL must be set`         | Set `MODELIONN_DATABASE_URL` in `.env` — entrypoint validates before start |
+| `RuntimeError: Default secret key` | Set `ZKML_SECRET_KEY` env var (min 32 chars)                          |
+| `DATABASE_URL must be set`         | Set `ZKML_DATABASE_URL` in `.env` — entrypoint validates before start |
 | Redis connection refused           | Check Redis container is healthy: `docker compose ps redis`                |
-| IPFS timeouts                      | Increase `MODELIONN_IPFS_TIMEOUT` or check IPFS node                       |
+| IPFS timeouts                      | Increase `ZKML_IPFS_TIMEOUT` or check IPFS node                       |
 | 403 on webhook endpoints           | Ensure user has org membership via `/orgs/{slug}/members`                  |
 | 429 Too Many Requests              | Rate limit: 120 req/60s per client — check `Retry-After` header            |
 | CSRF validation failed             | `Origin` header must match server host, or use `Authorization: Bearer`     |

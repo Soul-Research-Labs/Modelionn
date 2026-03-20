@@ -1,10 +1,10 @@
-# Security Policy — Modelionn
+# Security Policy — ZKML
 
 ## Reporting Vulnerabilities
 
 If you discover a security vulnerability, please report it **privately** via email:
 
-**security@modelionn.io**
+**security@zkml.io**
 
 Do NOT open a public GitHub issue for security-sensitive bugs. We will acknowledge receipt within 48 hours and provide a timeline for a fix.
 
@@ -195,9 +195,9 @@ Proof verification uses a binary stake-weighted consensus:
 
 ## Hardening Checklist for Operators
 
-- [ ] Set all required secrets: `MODELIONN_SECRET_KEY`, `POSTGRES_PASSWORD`, `REDIS_PASSWORD`, `FLOWER_PASSWORD`, `NEXTAUTH_SECRET`
-- [ ] Configure `MODELIONN_CORS_ORIGINS` to your domain only
-- [ ] Enable `MODELIONN_REQUIRE_SIGNATURE_VERIFICATION=true`
+- [ ] Set all required secrets: `ZKML_SECRET_KEY`, `POSTGRES_PASSWORD`, `REDIS_PASSWORD`, `FLOWER_PASSWORD`, `NEXTAUTH_SECRET`
+- [ ] Configure `ZKML_CORS_ORIGINS` to your domain only
+- [ ] Enable `ZKML_REQUIRE_SIGNATURE_VERIFICATION=true`
 - [ ] Set up TLS termination via reverse proxy (Nginx/Caddy) with HSTS
 - [ ] Review and customize Prometheus alert thresholds in `docker/prometheus/alerts.yml`
 - [ ] Configure alertmanager webhook URL (`ALERTMANAGER_WEBHOOK_URL`) for notifications

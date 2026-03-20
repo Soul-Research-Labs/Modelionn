@@ -7,10 +7,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from sdk.client import ModelionnClient, _sleep_backoff
+from sdk.client import ZKMLClient, _sleep_backoff
 from sdk.errors import (
     AuthError,
-    ModelionnError,
+    ZKMLError,
     NotFoundError,
     RateLimitError,
     ServerError,
@@ -68,35 +68,35 @@ class TestErrorHierarchy:
             raise_for_status(500, "oops")
 
     def test_raise_for_status_unknown(self):
-        with pytest.raises(ModelionnError):
+        with pytest.raises(ZKMLError):
             raise_for_status(418, "teapot")
 
     def test_all_inherit_from_base(self):
         for cls in (AuthError, NotFoundError, RateLimitError, ValidationError, ServerError):
-            assert issubclass(cls, ModelionnError)
+            assert issubclass(cls, ZKMLError)
 
 
 # ── Client initialization ────────────────────────────────────
 
 class TestClientInit:
     def test_default_url(self):
-        c = ModelionnClient()
+        c = ZKMLClient()
         assert c._url == "http://localhost:8000"
 
     def test_custom_url_strips_slash(self):
-        c = ModelionnClient("https://registry.example.com/")
+        c = ZKMLClient("https://registry.example.com/")
         assert c._url == "https://registry.example.com"
 
     def test_context_manager(self):
-        with ModelionnClient() as c:
-            assert isinstance(c, ModelionnClient)
+        with ZKMLClient() as c:
+            assert isinstance(c, ZKMLClient)
 
     def test_auth_headers_empty_without_hotkey(self):
-        c = ModelionnClient()
+        c = ZKMLClient()
         assert c._auth_headers() == {}
 
     def test_auth_headers_with_hotkey(self):
-        c = ModelionnClient(hotkey="5FTestHotkey123", sign_fn=lambda msg: "test_sig")
+        c = ZKMLClient(hotkey="5FTestHotkey123", sign_fn=lambda msg: "test_sig")
         headers = c._auth_headers()
         assert headers["x-hotkey"] == "5FTestHotkey123"
         assert "x-nonce" in headers
@@ -104,7 +104,7 @@ class TestClientInit:
 
     def test_auth_headers_with_custom_signer(self):
         signer = MagicMock(return_value="custom_sig")
-        c = ModelionnClient(hotkey="5FKey", sign_fn=signer)
+        c = ZKMLClient(hotkey="5FKey", sign_fn=signer)
         headers = c._auth_headers()
         assert headers["x-signature"] == "custom_sig"
         signer.assert_called_once()
@@ -142,7 +142,7 @@ class TestRetry:
 
         with patch("sdk.client.httpx.Client", return_value=mock_client), \
              patch("sdk.client._sleep_backoff"):
-            c = ModelionnClient(max_retries=3)
+            c = ZKMLClient(max_retries=3)
             resp = c._request_with_retry("GET", "http://test/health")
             assert resp.status_code == 200
 
@@ -155,7 +155,7 @@ class TestRetry:
         mock_client.__exit__ = MagicMock(return_value=False)
 
         with patch("sdk.client.httpx.Client", return_value=mock_client):
-            c = ModelionnClient(max_retries=3)
+            c = ZKMLClient(max_retries=3)
             with pytest.raises(ValidationError):
                 c._request_with_retry("GET", "http://test/bad")
             assert mock_client.request.call_count == 1

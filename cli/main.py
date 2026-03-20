@@ -1,4 +1,4 @@
-"""Modelionn CLI — terminal interface for the ZK Prover Network on Bittensor."""
+"""ZKML CLI — terminal interface for the ZK Prover Network on Bittensor."""
 
 from __future__ import annotations
 
@@ -14,20 +14,20 @@ from rich.table import Table
 def _version_str() -> str:
     try:
         from importlib.metadata import version
-        return version("modelionn")
+        return version("zkml")
     except Exception:
         return "0.0.0-unknown"
 
 
 def _version_callback(value: bool) -> None:
     if value:
-        typer.echo(f"modelionn {_version_str()}")
+        typer.echo(f"zkml {_version_str()}")
         raise typer.Exit()
 
 
 app = typer.Typer(
-    name="modelionn",
-    help="Modelionn — GPU-Accelerated ZK Prover Network on Bittensor",
+    name="zkml",
+    help="ZKML — GPU-Accelerated ZK Prover Network on Bittensor",
 )
 console = Console()
 
@@ -36,15 +36,15 @@ console = Console()
 def main_callback(
     version: bool = typer.Option(False, "--version", "-V", callback=_version_callback, is_eager=True, help="Show version and exit."),
 ) -> None:
-    """Modelionn CLI — GPU-Accelerated ZK Prover Network on Bittensor."""
+    """ZKML CLI — GPU-Accelerated ZK Prover Network on Bittensor."""
 
 # ── Config file support ──────────────────────────────────────
 
-_CONFIG_PATH = Path.home() / ".modelionn.toml"
+_CONFIG_PATH = Path.home() / ".zkml.toml"
 
 
 def _load_config() -> dict:
-    """Load defaults from ~/.modelionn.toml if it exists."""
+    """Load defaults from ~/.zkml.toml if it exists."""
     if not _CONFIG_PATH.exists():
         return {}
     try:
@@ -60,12 +60,12 @@ def _load_config() -> dict:
 def _cfg(key: str, default: str = "") -> str:
     """Read a config value from file → env → default."""
     cfg = _load_config()
-    env_key = f"MODELIONN_{key.upper()}"
+    env_key = f"ZKML_{key.upper()}"
     return os.environ.get(env_key) or cfg.get(key, default)
 
 
 def _resolve_hotkey(hotkey: str) -> str:
-    """Resolve hotkey from flag or config or $MODELIONN_HOTKEY env var."""
+    """Resolve hotkey from flag or config or $ZKML_HOTKEY env var."""
     return hotkey or _cfg("hotkey")
 
 
@@ -74,8 +74,8 @@ def _default_registry() -> str:
 
 
 def _client(registry: str, hotkey: str):
-    from sdk.client import ModelionnClient
-    return ModelionnClient(registry_url=registry or _default_registry(), hotkey=_resolve_hotkey(hotkey))
+    from sdk.client import ZKMLClient
+    return ZKMLClient(registry_url=registry or _default_registry(), hotkey=_resolve_hotkey(hotkey))
 
 
 def _json_output(data: dict | list) -> None:
@@ -399,7 +399,7 @@ def network_stats(
     if output_json:
         _json_output(data)
         return
-    console.print("[bold]Modelionn ZK Prover Network[/]")
+    console.print("[bold]ZKML ZK Prover Network[/]")
     console.print(f"  Online Provers:  {data.get('online_provers', 0)}/{data.get('total_provers', 0)}")
     console.print(f"  Total Proofs:    {data.get('total_proofs_generated', 0):,}")
     console.print(f"  Total Circuits:  {data.get('total_circuits', 0)}")
@@ -454,15 +454,15 @@ def register_prover(
 def auth_status():
     """Show current authentication configuration."""
     cfg = _load_config()
-    hotkey = os.environ.get("MODELIONN_HOTKEY") or cfg.get("hotkey", "")
-    registry = os.environ.get("MODELIONN_REGISTRY") or cfg.get("registry", "")
+    hotkey = os.environ.get("ZKML_HOTKEY") or cfg.get("hotkey", "")
+    registry = os.environ.get("ZKML_REGISTRY") or cfg.get("registry", "")
     config_exists = _CONFIG_PATH.exists()
 
     console.print(f"Config file: {_CONFIG_PATH} {'[green](exists)[/]' if config_exists else '[yellow](not found)[/]'}")
     console.print(f"Registry:    {registry or '[dim]not set[/]'}")
     console.print(f"Hotkey:      {hotkey or '[dim]not set[/]'}")
     if not hotkey:
-        console.print("[yellow]Run 'modelionn login --hotkey <your-hotkey>' to configure.[/]")
+        console.print("[yellow]Run 'zkml login --hotkey <your-hotkey>' to configure.[/]")
 
 
 # ── Login / configure ───────────────────────────────────────
@@ -472,7 +472,7 @@ def login(
     hotkey: str = typer.Option("", "--hotkey", "-k", help="Default hotkey"),
     registry: str = typer.Option("", "--registry", "-r", help="Registry URL"),
 ):
-    """Save default configuration to ~/.modelionn.toml."""
+    """Save default configuration to ~/.zkml.toml."""
     if registry and not registry.startswith(("http://", "https://")):
         console.print("[red]Registry URL must start with http:// or https://[/]")
         raise typer.Exit(1)
@@ -755,8 +755,8 @@ def audit_list(
     output_json: bool = typer.Option(False, "--json"),
 ):
     """List audit log entries."""
-    from sdk.client import ModelionnClient
-    c = ModelionnClient(registry_url=registry or _default_registry())
+    from sdk.client import ZKMLClient
+    c = ZKMLClient(registry_url=registry or _default_registry())
     params: dict = {"page": page}
     if action:
         params["action"] = action
@@ -794,13 +794,13 @@ def show_completion(
 ) -> None:
     """Manage shell tab completion.
 
-    Run `modelionn completion --install` to enable tab completion for your shell.
+    Run `zkml completion --install` to enable tab completion for your shell.
     """
     import subprocess
     import sys
 
     if not install and not show:
-        console.print("Usage: modelionn completion --install  or  modelionn completion --show")
+        console.print("Usage: zkml completion --install  or  zkml completion --show")
         console.print("  --shell bash|zsh|fish|powershell  (auto-detected if omitted)")
         raise typer.Exit()
 
@@ -821,7 +821,7 @@ def show_completion(
         console.print(f"[red]Unsupported shell: {shell}. Use bash, zsh, fish, or powershell.[/]")
         raise typer.Exit(1)
 
-    prog = "modelionn"
+    prog = "zkml"
     env_var = f"_{prog.upper()}_COMPLETE"
 
     if show:
@@ -872,7 +872,7 @@ def show_completion(
             comp_file.write_text(result.stdout)
             console.print(f"[green]✓[/] Completion installed to {comp_file}")
         else:
-            console.print("[yellow]PowerShell completion: run 'modelionn completion --show --shell powershell' and add to $PROFILE[/]")
+            console.print("[yellow]PowerShell completion: run 'zkml completion --show --shell powershell' and add to $PROFILE[/]")
 
 
 if __name__ == "__main__":

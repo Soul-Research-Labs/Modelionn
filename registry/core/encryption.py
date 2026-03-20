@@ -18,7 +18,7 @@ _VERSION = 1
 _NONCE_LEN = 12  # GCM recommended nonce length
 _TAG_LEN = 16  # GCM tag length
 _KEY_LEN = 32  # AES-256
-_SALT = b"modelionn-field-encryption-v1"
+_SALT = b"zkml-field-encryption-v1"
 
 
 def _derive_key(master_key: str | bytes) -> bytes:

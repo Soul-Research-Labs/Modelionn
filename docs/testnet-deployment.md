@@ -1,6 +1,6 @@
 # Testnet Deployment Guide
 
-Deploy Modelionn on Bittensor testnet for development and validation.
+Deploy ZKML on Bittensor testnet for development and validation.
 
 ## Prerequisites
 
@@ -12,25 +12,25 @@ Deploy Modelionn on Bittensor testnet for development and validation.
 
 ```bash
 pip install bittensor
-btcli wallet create --wallet-name modelionn --wallet-hotkey default
+btcli wallet create --wallet-name zkml --wallet-hotkey default
 ```
 
 ## 2. Fund the Wallet
 
 ```bash
-btcli wallet faucet --wallet-name modelionn --subtensor.network test
+btcli wallet faucet --wallet-name zkml --subtensor.network test
 ```
 
 ## 3. Register on the Subnet
 
 ```bash
-python scripts/register.py --network test --wallet-name modelionn
+python scripts/register.py --network test --wallet-name zkml
 ```
 
 Or directly:
 
 ```bash
-btcli subnet register --netuid 1 --subtensor.network test --wallet.name modelionn
+btcli subnet register --netuid 1 --subtensor.network test --wallet.name zkml
 ```
 
 ## 4. Start the Registry
@@ -38,7 +38,7 @@ btcli subnet register --netuid 1 --subtensor.network test --wallet.name modelion
 ```bash
 # Set environment
 cp .env.example .env
-# Edit .env: MODELIONN_BT_NETWORK=test
+# Edit .env: ZKML_BT_NETWORK=test
 
 # Start all services
 docker compose up -d
@@ -47,28 +47,28 @@ docker compose up -d
 ## 5. Run a Miner
 
 ```bash
-docker build -f docker/Dockerfile.neuron --target miner -t modelionn-miner .
+docker build -f docker/Dockerfile.neuron --target miner -t zkml-miner .
 docker run --rm \
   --network host \
   -v ~/.bittensor:/root/.bittensor \
-  modelionn-miner \
+  zkml-miner \
   --netuid 1 \
   --subtensor.network test \
-  --wallet.name modelionn \
+  --wallet.name zkml \
   --wallet.hotkey default
 ```
 
 ## 6. Run a Validator
 
 ```bash
-docker build -f docker/Dockerfile.neuron --target validator -t modelionn-validator .
+docker build -f docker/Dockerfile.neuron --target validator -t zkml-validator .
 docker run --rm \
   --network host \
   -v ~/.bittensor:/root/.bittensor \
-  modelionn-validator \
+  zkml-validator \
   --netuid 1 \
   --subtensor.network test \
-  --wallet.name modelionn \
+  --wallet.name zkml \
   --wallet.hotkey default
 ```
 
@@ -76,22 +76,22 @@ docker run --rm \
 
 ```bash
 # Check registration
-python scripts/register.py --network test --wallet-name modelionn
+python scripts/register.py --network test --wallet-name zkml
 
 # Health check
 curl http://localhost:8000/health
 
 # Push a test model
-modelionn push model ./my-model.bin --name test-model --version 0.1 --hotkey <your-hotkey>
+zkml push model ./my-model.bin --name test-model --version 0.1 --hotkey <your-hotkey>
 ```
 
 ## Network Configuration
 
 | Setting                          | Testnet | Mainnet (Finney)         |
 | -------------------------------- | ------- | ------------------------ |
-| `MODELIONN_BT_NETWORK`           | `test`  | `finney`                 |
-| `MODELIONN_BT_NETUID`            | `1`     | _your registered netuid_ |
-| `MODELIONN_MIN_STAKE_TO_PUBLISH` | `0.0`   | `100.0`                  |
+| `ZKML_BT_NETWORK`           | `test`  | `finney`                 |
+| `ZKML_BT_NETUID`            | `1`     | _your registered netuid_ |
+| `ZKML_MIN_STAKE_TO_PUBLISH` | `0.0`   | `100.0`                  |
 
 ## Troubleshooting
 

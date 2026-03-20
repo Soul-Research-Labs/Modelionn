@@ -1,6 +1,6 @@
 # Prover Development Guide
 
-This guide covers the Modelionn prover engine — a Rust library exposing PyO3 bindings for GPU-accelerated zero-knowledge proof generation.
+This guide covers the ZKML prover engine — a Rust library exposing PyO3 bindings for GPU-accelerated zero-knowledge proof generation.
 
 ---
 
@@ -270,12 +270,12 @@ Aggregation strategy depends on the proof system:
 
 ## Python Bindings
 
-The `modelionn_prover._native` module exposes Rust types to Python via PyO3.
+The `zkml_prover._native` module exposes Rust types to Python via PyO3.
 
 ### Usage
 
 ```python
-from modelionn_prover._native import ProverEngine, Circuit, Witness
+from zkml_prover._native import ProverEngine, Circuit, Witness
 
 engine = ProverEngine(max_constraints=1_000_000_000)
 
@@ -349,14 +349,14 @@ cargo test --features "groth16,cuda" # With GPU
 ### Environment variables
 
 - `RUST_LOG=debug` — Verbose logging
-- `MODELIONN_GPU_BACKEND=cpu` — Force CPU fallback
+- `ZKML_GPU_BACKEND=cpu` — Force CPU fallback
 
 ### Running from Python
 
 ```bash
 cd prover
 maturin develop
-python -c "from modelionn_prover._native import ProverEngine; print(ProverEngine().gpu_devices())"
+python -c "from zkml_prover._native import ProverEngine; print(ProverEngine().gpu_devices())"
 ```
 
 ---

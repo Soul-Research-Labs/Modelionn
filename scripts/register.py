@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Register or check registration on the Modelionn subnet.
+"""Register or check registration on the ZKML subnet.
 
 Usage:
     python scripts/register.py                    # interactive
@@ -14,7 +14,7 @@ import sys
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Register on the Modelionn Bittensor subnet")
+    parser = argparse.ArgumentParser(description="Register on the ZKML Bittensor subnet")
     parser.add_argument("--network", default="test", choices=["finney", "test", "local"])
     parser.add_argument("--netuid", type=int, default=1)
     parser.add_argument("--wallet-name", default="default")
@@ -24,7 +24,7 @@ def main() -> None:
     try:
         import bittensor as bt  # type: ignore[import-untyped]
     except ImportError:
-        print("ERROR: bittensor not installed. Run: pip install 'modelionn[bittensor]'")
+        print("ERROR: bittensor not installed. Run: pip install 'zkml[bittensor]'")
         sys.exit(1)
 
     wallet = bt.wallet(name=args.wallet_name, hotkey=args.wallet_hotkey)

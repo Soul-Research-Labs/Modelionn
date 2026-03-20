@@ -1,10 +1,10 @@
-"""SDK error hierarchy — typed exceptions for Modelionn API errors."""
+"""SDK error hierarchy — typed exceptions for ZKML API errors."""
 
 from __future__ import annotations
 
 
-class ModelionnError(Exception):
-    """Base exception for all Modelionn SDK errors."""
+class ZKMLError(Exception):
+    """Base exception for all ZKML SDK errors."""
 
     def __init__(self, message: str, status_code: int | None = None, detail: str | None = None) -> None:
         super().__init__(message)
@@ -12,17 +12,17 @@ class ModelionnError(Exception):
         self.detail = detail
 
 
-class AuthError(ModelionnError):
+class AuthError(ZKMLError):
     """Authentication or authorization failure (401/403)."""
     pass
 
 
-class NotFoundError(ModelionnError):
+class NotFoundError(ZKMLError):
     """Requested resource not found (404)."""
     pass
 
 
-class RateLimitError(ModelionnError):
+class RateLimitError(ZKMLError):
     """Rate limit exceeded (429)."""
 
     def __init__(self, message: str = "Rate limit exceeded", retry_after: int | None = None, **kwargs) -> None:
@@ -30,12 +30,12 @@ class RateLimitError(ModelionnError):
         self.retry_after = retry_after
 
 
-class ValidationError(ModelionnError):
+class ValidationError(ZKMLError):
     """Request validation failed (422)."""
     pass
 
 
-class ServerError(ModelionnError):
+class ServerError(ZKMLError):
     """Server-side error (5xx)."""
     pass
 
@@ -54,4 +54,4 @@ def raise_for_status(status_code: int, detail: str = "") -> None:
         raise RateLimitError(detail=detail)
     if status_code >= 500:
         raise ServerError(f"Server error ({status_code})", status_code=status_code, detail=detail)
-    raise ModelionnError(f"HTTP error ({status_code})", status_code=status_code, detail=detail)
+    raise ZKMLError(f"HTTP error ({status_code})", status_code=status_code, detail=detail)

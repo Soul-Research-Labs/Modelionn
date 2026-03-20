@@ -1,4 +1,4 @@
-"""Modelionn application settings."""
+"""ZKML application settings."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="MODELIONN_", env_file=".env")
+    model_config = SettingsConfigDict(env_prefix="ZKML_", env_file=".env")
 
     # --- API ---
     api_host: str = "0.0.0.0"
@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     secret_key: str = "change-me-in-production-use-64-chars-minimum-random-string!!"
 
     # --- Database ---
-    database_url: str = "sqlite+aiosqlite:///./data/modelionn.db"
+    database_url: str = "sqlite+aiosqlite:///./data/zkml.db"
 
     # --- IPFS ---
     ipfs_api_url: str = "http://127.0.0.1:5001"
@@ -37,7 +37,7 @@ class Settings(BaseSettings):
     min_stake_to_publish: float = 0.0  # TAO — 0 for testnet
 
     # --- Storage ---
-    cache_dir: Path = Path.home() / ".modelionn" / "cache"
+    cache_dir: Path = Path.home() / ".zkml" / "cache"
     data_dir: Path = Path("./data")
 
     # --- Redis ---
@@ -80,18 +80,18 @@ settings = Settings()
 if settings.secret_key == _DEFAULT_SECRET:
     if not settings.debug:
         raise RuntimeError(
-            "MODELIONN_SECRET_KEY is still the default value. "
+            "ZKML_SECRET_KEY is still the default value. "
             "Set a strong random secret before running in production mode (debug=False)."
         )
     import logging as _logging
     _logging.getLogger(__name__).warning(
-        "MODELIONN_SECRET_KEY is the default value. "
-        "Set MODELIONN_SECRET_KEY to a strong random secret before deploying."
+        "ZKML_SECRET_KEY is the default value. "
+        "Set ZKML_SECRET_KEY to a strong random secret before deploying."
     )
 
 # Enforce signature verification in non-debug mode
 if not settings.debug and not settings.require_signature_verification:
     raise RuntimeError(
-        "MODELIONN_REQUIRE_SIGNATURE_VERIFICATION must be True in production mode "
-        "(debug=False). Set MODELIONN_REQUIRE_SIGNATURE_VERIFICATION=true before deploying."
+        "ZKML_REQUIRE_SIGNATURE_VERIFICATION must be True in production mode "
+        "(debug=False). Set ZKML_REQUIRE_SIGNATURE_VERIFICATION=true before deploying."
     )

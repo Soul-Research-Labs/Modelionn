@@ -1,12 +1,12 @@
 # Subnet Operations Runbook
 
-Operational guide for running Modelionn miners and validators on the Bittensor subnet.
+Operational guide for running ZKML miners and validators on the Bittensor subnet.
 
 ---
 
 ## Architecture Overview
 
-The Modelionn subnet consists of:
+The ZKML subnet consists of:
 
 - **Validators** — receive proof requests, dispatch them to miners, verify results, and update consensus scores.
 - **Miners** — GPU-equipped nodes that execute ZK proof generation.
@@ -136,10 +136,10 @@ Prevents miners from reusing proof fragments across jobs. Maintains last 10,000 
 curl http://localhost:8000/health
 
 # Network stats
-modelionn network-stats
+zkml network-stats
 
 # Prover status
-modelionn provers --online
+zkml provers --online
 ```
 
 ### Grafana Dashboard
@@ -157,7 +157,7 @@ Import `grafana/dashboard.json` for pre-built views of:
 
 ### Miner Not Receiving Jobs
 
-1. Check the miner is registered: `modelionn provers --online`
+1. Check the miner is registered: `zkml provers --online`
 2. Verify benchmark score meets minimum: `benchmark_score >= 1.0`
 3. Confirm GPU is detected: check `gpu_name` in prover registration
 4. Ensure the miner's hotkey has sufficient stake
@@ -171,7 +171,7 @@ Import `grafana/dashboard.json` for pre-built views of:
 
 ### Proof Job Stuck in DISPATCHED
 
-1. Check partition status: `modelionn proof-status <task_id>`
+1. Check partition status: `zkml proof-status <task_id>`
 2. Assigned prover may be offline — job times out after `soft_time_limit` (300s)
 3. Celery worker may be down — check `celery -A registry.tasks.celery_app status`
 

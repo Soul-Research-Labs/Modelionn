@@ -1,13 +1,13 @@
-# Modelionn — GPU-Accelerated ZK Prover Network
+# ZKML — GPU-Accelerated ZK Prover Network
 
 > **Distributed zero-knowledge proof generation powered by [Bittensor](https://bittensor.com/).**
 
-Modelionn is a decentralised ZK prover network where GPU miners collaborate to generate
+ZKML is a decentralised ZK prover network where GPU miners collaborate to generate
 zero-knowledge proofs. Circuits and witnesses are content-addressed on IPFS, proof jobs are
 partitioned and dispatched across GPU-equipped miners, and a Bittensor subnet rewards fast,
 correct, and reliable proof generation with TAO.
 
-**Why Modelionn?**
+**Why ZKML?**
 
 - **Multi-proof-system** — Groth16, PLONK, Halo2, and STARKs in a single network.
 - **GPU-accelerated** — Rust prover engine with CUDA, ROCm, Metal, and WebGPU backends.
@@ -48,7 +48,7 @@ correct, and reliable proof generation with TAO.
 | **Dispatch** | Celery pipeline — partition circuits, assign to GPU miners          |
 | **Web**      | Next.js 14 dashboard — prover network, circuits, proof jobs         |
 | **SDK**      | Python client — `client.upload_circuit()`, `client.request_proof()` |
-| **CLI**      | Terminal tool — `modelionn prove`, `modelionn circuits`, etc.       |
+| **CLI**      | Terminal tool — `zkml prove`, `zkml circuits`, etc.       |
 
 ## Features
 
@@ -117,20 +117,20 @@ cd prover && cargo build --release && cd ..
 uvicorn registry.api.app:app --reload
 
 # Upload a circuit
-modelionn upload-circuit --name my-circuit --proof-type groth16 --circuit-type general \
+zkml upload-circuit --name my-circuit --proof-type groth16 --circuit-type general \
   --constraints 100000 --cid QmXxx...
 
 # Request a proof
-modelionn prove <circuit-id> --witness QmYyy... --partitions 4 --redundancy 2
+zkml prove <circuit-id> --witness QmYyy... --partitions 4 --redundancy 2
 
 # Check proof status
-modelionn proof-status <task-id>
+zkml proof-status <task-id>
 
 # List network provers
-modelionn provers --online
+zkml provers --online
 
 # Network statistics
-modelionn network-stats
+zkml network-stats
 
 # Launch the web dashboard
 cd web && npm install && npm run dev

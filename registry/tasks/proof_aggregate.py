@@ -317,7 +317,7 @@ async def _aggregate_job(db, job) -> None:
     # compute on combining invalid proofs.
     invalid_partitions: list[int] = []
     try:
-        from prover.python.modelionn_prover import ProverEngine, CircuitData, ProofResult, ProofSystem, CircuitType
+        from prover.python.zkml_prover import ProverEngine, CircuitData, ProofResult, ProofSystem, CircuitType
 
         ps_map = {"groth16": ProofSystem.GROTH16, "plonk": ProofSystem.PLONK,
                    "halo2": ProofSystem.HALO2, "stark": ProofSystem.STARK}
@@ -378,7 +378,7 @@ async def _aggregate_job(db, job) -> None:
 
     verified = False
     try:
-        from prover.python.modelionn_prover import ProverEngine, CircuitData, ProofResult, ProofSystem, CircuitType
+        from prover.python.zkml_prover import ProverEngine, CircuitData, ProofResult, ProofSystem, CircuitType
 
         ps_map = {"groth16": ProofSystem.GROTH16, "plonk": ProofSystem.PLONK,
                    "halo2": ProofSystem.HALO2, "stark": ProofSystem.STARK}

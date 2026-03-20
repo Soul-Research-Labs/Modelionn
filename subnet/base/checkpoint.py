@@ -16,7 +16,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_DIR = Path.home() / ".modelionn" / "checkpoints"
+_DEFAULT_DIR = Path.home() / ".zkml" / "checkpoints"
 _CHECKPOINT_INTERVAL_SECS = 60  # default: save every 60s
 
 

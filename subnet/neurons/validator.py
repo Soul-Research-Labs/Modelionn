@@ -1,4 +1,4 @@
-"""Modelionn Validator Neuron — dispatches proof jobs and scores provers.
+"""ZKML Validator Neuron — dispatches proof jobs and scores provers.
 
 Validators earn TAO by:
 1. Dispatching proof requests to GPU-capable miners

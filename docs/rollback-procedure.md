@@ -1,6 +1,6 @@
 # Rollback Procedure Guide
 
-Steps to safely revert the Modelionn registry to a previous release.
+Steps to safely revert the ZKML registry to a previous release.
 
 ## Pre-Rollback Checklist
 
@@ -30,9 +30,9 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 ### Kubernetes (if applicable)
 
 ```bash
-kubectl rollout undo deployment/modelionn-api --to-revision=<N>
-kubectl rollout undo deployment/modelionn-worker --to-revision=<N>
-kubectl rollout status deployment/modelionn-api --timeout=120s
+kubectl rollout undo deployment/zkml-api --to-revision=<N>
+kubectl rollout undo deployment/zkml-worker --to-revision=<N>
+kubectl rollout status deployment/zkml-api --timeout=120s
 ```
 
 ## Rolling Back Database Migrations
@@ -86,7 +86,7 @@ If the database is corrupted:
 docker compose down
 
 # 2. Restore from backup
-scripts/restore.sh /backups/pg_modelionn_<timestamp>.dump
+scripts/restore.sh /backups/pg_zkml_<timestamp>.dump
 
 # 3. Downgrade migrations to match backup point
 alembic downgrade <revision_at_backup_time>

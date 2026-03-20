@@ -15,9 +15,9 @@ from registry.api.routes.metrics import (
     set_gauge,
 )
 
-_REQUESTS_TOTAL = "modelionn_http_requests_total"
-_REQUEST_LATENCY = "modelionn_http_request_duration_seconds"
-_REQUESTS_IN_FLIGHT = "modelionn_http_requests_in_flight"
+_REQUESTS_TOTAL = "zkml_http_requests_total"
+_REQUEST_LATENCY = "zkml_http_request_duration_seconds"
+_REQUESTS_IN_FLIGHT = "zkml_http_requests_in_flight"
 
 _in_flight = 0
 _in_flight_lock = threading.Lock()
