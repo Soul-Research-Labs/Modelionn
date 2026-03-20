@@ -19,7 +19,7 @@
     "@tanstack/react-query": "^5.50.0",
     "zustand": "^4.5.0",
     "clsx": "^2.1.0",
-    "tailwind-merge": "^2.3.0",
+    "tailwind-merge": "^3.5.0",
     "class-variance-authority": "^0.7.0",
     "lucide-react": "^0.400.0",
     "@radix-ui/react-slot": "^1.0.2",
